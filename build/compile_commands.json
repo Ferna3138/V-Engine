@@ -1,0 +1,38 @@
+[
+{
+  "directory": "/Users/fernandoedelstein/Documents/GitHub/V-Engine/build",
+  "command": "/usr/bin/clang++  -I/Users/fernandoedelstein/Documents/GitHub/V-Engine/dependencies -isystem /usr/local/include -g -std=gnu++20 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk -o CMakeFiles/V-Engine.dir/src/backend/glfw_backend.cpp.o -c /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/backend/glfw_backend.cpp",
+  "file": "/Users/fernandoedelstein/Documents/GitHub/V-Engine/src/backend/glfw_backend.cpp",
+  "output": "CMakeFiles/V-Engine.dir/src/backend/glfw_backend.cpp.o"
+},
+{
+  "directory": "/Users/fernandoedelstein/Documents/GitHub/V-Engine/build",
+  "command": "/usr/bin/clang++  -I/Users/fernandoedelstein/Documents/GitHub/V-Engine/dependencies -isystem /usr/local/include -g -std=gnu++20 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk -o CMakeFiles/V-Engine.dir/src/controller/app.cpp.o -c /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/controller/app.cpp",
+  "file": "/Users/fernandoedelstein/Documents/GitHub/V-Engine/src/controller/app.cpp",
+  "output": "CMakeFiles/V-Engine.dir/src/controller/app.cpp.o"
+},
+{
+  "directory": "/Users/fernandoedelstein/Documents/GitHub/V-Engine/build",
+  "command": "/usr/bin/clang++  -I/Users/fernandoedelstein/Documents/GitHub/V-Engine/dependencies -isystem /usr/local/include -g -std=gnu++20 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk -o CMakeFiles/V-Engine.dir/src/logging/logger.cpp.o -c /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/logging/logger.cpp",
+  "file": "/Users/fernandoedelstein/Documents/GitHub/V-Engine/src/logging/logger.cpp",
+  "output": "CMakeFiles/V-Engine.dir/src/logging/logger.cpp.o"
+},
+{
+  "directory": "/Users/fernandoedelstein/Documents/GitHub/V-Engine/build",
+  "command": "/usr/bin/clang++  -I/Users/fernandoedelstein/Documents/GitHub/V-Engine/dependencies -isystem /usr/local/include -g -std=gnu++20 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk -o CMakeFiles/V-Engine.dir/src/renderer/instance.cpp.o -c /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/renderer/instance.cpp",
+  "file": "/Users/fernandoedelstein/Documents/GitHub/V-Engine/src/renderer/instance.cpp",
+  "output": "CMakeFiles/V-Engine.dir/src/renderer/instance.cpp.o"
+},
+{
+  "directory": "/Users/fernandoedelstein/Documents/GitHub/V-Engine/build",
+  "command": "/usr/bin/clang++  -I/Users/fernandoedelstein/Documents/GitHub/V-Engine/dependencies -isystem /usr/local/include -g -std=gnu++20 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk -o CMakeFiles/V-Engine.dir/src/renderer/renderer.cpp.o -c /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/renderer/renderer.cpp",
+  "file": "/Users/fernandoedelstein/Documents/GitHub/V-Engine/src/renderer/renderer.cpp",
+  "output": "CMakeFiles/V-Engine.dir/src/renderer/renderer.cpp.o"
+},
+{
+  "directory": "/Users/fernandoedelstein/Documents/GitHub/V-Engine/build",
+  "command": "/usr/bin/clang++  -I/Users/fernandoedelstein/Documents/GitHub/V-Engine/dependencies -isystem /usr/local/include -g -std=gnu++20 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk -o CMakeFiles/V-Engine.dir/src/main.cpp.o -c /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/main.cpp",
+  "file": "/Users/fernandoedelstein/Documents/GitHub/V-Engine/src/main.cpp",
+  "output": "CMakeFiles/V-Engine.dir/src/main.cpp.o"
+}
+]
