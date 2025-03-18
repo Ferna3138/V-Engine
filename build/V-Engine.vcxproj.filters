@@ -10,6 +10,9 @@
     <ClCompile Include="C:\Users\ferna\Documents\GitHub\V-Engine\src\logging\logger.cpp">
       <Filter>src\logging</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\ferna\Documents\GitHub\V-Engine\src\renderer\device.cpp">
+      <Filter>src\renderer</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\ferna\Documents\GitHub\V-Engine\src\renderer\instance.cpp">
       <Filter>src\renderer</Filter>
     </ClCompile>
@@ -29,6 +32,9 @@
     </ClInclude>
     <ClInclude Include="C:\Users\ferna\Documents\GitHub\V-Engine\src\logging\logger.h">
       <Filter>src\logging</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\ferna\Documents\GitHub\V-Engine\src\renderer\device.h">
+      <Filter>src\renderer</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\ferna\Documents\GitHub\V-Engine\src\renderer\instance.h">
       <Filter>src\renderer</Filter>

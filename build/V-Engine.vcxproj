@@ -338,6 +338,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\ferna\Documents\GitHub\V-Engine\src\controller\app.h" />
     <ClCompile Include="C:\Users\ferna\Documents\GitHub\V-Engine\src\logging\logger.cpp" />
     <ClInclude Include="C:\Users\ferna\Documents\GitHub\V-Engine\src\logging\logger.h" />
+    <ClCompile Include="C:\Users\ferna\Documents\GitHub\V-Engine\src\renderer\device.cpp" />
+    <ClInclude Include="C:\Users\ferna\Documents\GitHub\V-Engine\src\renderer\device.h" />
     <ClCompile Include="C:\Users\ferna\Documents\GitHub\V-Engine\src\renderer\instance.cpp" />
     <ClInclude Include="C:\Users\ferna\Documents\GitHub\V-Engine\src\renderer\instance.h" />
     <ClCompile Include="C:\Users\ferna\Documents\GitHub\V-Engine\src\renderer\renderer.cpp" />
