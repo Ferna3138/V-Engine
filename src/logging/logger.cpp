@@ -153,3 +153,76 @@ void Logger::log(const vk::PhysicalDevice& device) {
 	}
 	std::cout << std::endl;
 }
+
+void Logger::log(const std::vector<vk::QueueFamilyProperties>& queueFamilies) {
+
+	if (!enabled) {
+		return;
+	}
+
+	std::cout << "There are " << queueFamilies.size() 
+		<< " queue families available on the system." 
+		<< std::endl;
+	
+	for (uint32_t i = 0; i < queueFamilies.size(); ++i) {
+
+		/*
+		* // Provided by VK_VERSION_1_0
+			typedef struct VkQueueFamilyProperties {
+			VkQueueFlags    queueFlags;
+			uint32_t        queueCount;
+			uint32_t        timestampValidBits;
+			VkExtent3D      minImageTransferGranularity;
+			} VkQueueFamilyProperties;
+
+			queueFlags is a bitmask of VkQueueFlagBits indicating capabilities of the queues in this queue family.
+
+			queueCount is the unsigned integer count of queues in this queue family. Each queue family must support 
+			at least one queue.
+		*/
+
+		/*
+		* // Provided by VK_VERSION_1_0
+			typedef enum VkQueueFlagBits {
+			VK_QUEUE_GRAPHICS_BIT = 0x00000001,
+			VK_QUEUE_COMPUTE_BIT = 0x00000002,
+			VK_QUEUE_TRANSFER_BIT = 0x00000004,
+			VK_QUEUE_SPARSE_BINDING_BIT = 0x00000008,
+			} VkQueueFlagBits;
+		*/
+
+		vk::QueueFamilyProperties queueFamily = queueFamilies[i];
+
+		std::cout << "Queue Family " << i << ":" << std::endl;
+
+		std::cout << "\tSupports ";
+		if (queueFamily.queueFlags & vk::QueueFlagBits::eCompute) {
+			std::cout << "compute, ";
+		}
+		if (queueFamily.queueFlags & vk::QueueFlagBits::eGraphics) {
+			std::cout << "graphics, ";
+		}
+		if (queueFamily.queueFlags & vk::QueueFlagBits::eTransfer) {
+			std::cout << "transfer, ";
+		}
+		if (queueFamily.queueFlags & vk::QueueFlagBits::eOpticalFlowNV) {
+			std::cout << "nvidia optical flow, ";
+		}
+		if (queueFamily.queueFlags & vk::QueueFlagBits::eSparseBinding) {
+			std::cout << "sparse binding, ";
+		}
+		if (queueFamily.queueFlags & vk::QueueFlagBits::eProtected) {
+			std::cout << "protected memory, ";
+		}
+		if (queueFamily.queueFlags & vk::QueueFlagBits::eVideoDecodeKHR) {
+			std::cout << "video decode, ";
+		}
+		if (queueFamily.queueFlags & vk::QueueFlagBits::eVideoEncodeKHR) {
+			std::cout << "video encode, ";
+		}
+		std::cout << std::endl;
+
+		std::cout << "\tFamily supports " 
+			<< queueFamily.queueCount << " queues." << std::endl;
+	}
+}

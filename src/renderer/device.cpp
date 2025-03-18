@@ -64,3 +64,78 @@ vk::PhysicalDevice choose_physical_device(const vk::Instance& instance){
     }
     return nullptr;
 }
+
+uint32_t findQueueFamilyIndex(vk::PhysicalDevice physicalDevice, vk::QueueFlags queueType){
+    Logger* logger = Logger::get_logger();
+
+    std::vector<vk::QueueFamilyProperties> queueFamilies = physicalDevice.getQueueFamilyProperties();
+    logger -> log(queueFamilies);
+
+    for(uint32_t i = 0; i < queueFamilies.size(); ++i){
+        vk::QueueFamilyProperties queueFamily = queueFamilies[i];
+
+        if(queueFamily.queueFlags& queueType){
+            return i;
+        }
+
+    }
+    return UINT32_MAX;
+}
+
+vk::Device create_logical_device(
+    vk::PhysicalDevice physicalDevice,
+    std::deque<std::function<void(vk::Device)>>& deletionQueue){
+
+    Logger* logger = Logger::get_logger();
+
+    uint32_t graphicsIndex = findQueueFamilyIndex(physicalDevice, vk::QueueFlagBits::eGraphics);
+    float queuePriority = 1.0f;
+
+    vk::DeviceQueueCreateInfo queueInfo = vk::DeviceQueueCreateInfo(
+        vk::DeviceQueueCreateFlags(),
+        graphicsIndex,
+        1,
+        &queuePriority
+    );
+
+    vk::PhysicalDeviceFeatures deviceFeatures = vk::PhysicalDeviceFeatures();
+
+    uint32_t enabled_layer_count = 1;
+    const char** ppEnabledLayers = nullptr;
+
+    if(logger -> is_enabled()){
+        enabled_layer_count = 1;
+        ppEnabledLayers = (const char**) malloc(sizeof(const char*));
+        ppEnabledLayers[0] = "VK_LAYER_KHRONOS_validation";
+    }
+
+    uint32_t enabledExtensionCount = 1;
+    const char** ppEnabledExtensions = (const char**) malloc(enabledExtensionCount * sizeof(char*));
+    ppEnabledExtensions[0] = "VK_KHR_portability_subset";
+
+    vk::DeviceCreateInfo deviceInfo = vk::DeviceCreateInfo(
+        vk::DeviceCreateFlags(),
+        1,
+        &queueInfo,
+        enabled_layer_count, ppEnabledLayers,
+        enabledExtensionCount, ppEnabledExtensions,
+        &deviceFeatures
+    );
+
+    vk::ResultValueType<vk::Device>::type logicalDevice = physicalDevice.createDevice(deviceInfo);
+
+    if(logicalDevice.result == vk::Result::eSuccess){
+        logger -> print("GPU has been successfully abstracted!");
+
+        deletionQueue.push_back([logger](vk::Device device){
+            device.destroy();
+            logger -> print("Deleted logical device");
+        });
+
+        return logicalDevice.value;
+    }
+    else{
+        logger -> print("Device creation failed!");
+        return nullptr;
+    }
+}
