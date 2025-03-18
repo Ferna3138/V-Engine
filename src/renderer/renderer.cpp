@@ -12,11 +12,14 @@ Engine::Engine(GLFWwindow* window) :
 	debugMessenger = logger->make_debug_messenger(instance, dldi, instanceDeletionQueue);
 	logger->set_mode(false);
 
+	VkSurfaceKHR raw_surface;
+
 	physicalDevice = choose_physical_device(instance);
 
 	logger->set_mode(true);
-	logicalDevice = create_logical_device(physicalDevice, deviceDeletionQueue);
-	uint32_t graphicsQueueFamilyIndex = findQueueFamilyIndex(
+	logicalDevice = create_logical_device(
+		physicalDevice, deviceDeletionQueue);
+	uint32_t graphicsQueueFamilyIndex = find_queue_family_index(
 		physicalDevice, vk::QueueFlagBits::eGraphics);
 	graphicsQueue = logicalDevice.getQueue(graphicsQueueFamilyIndex, 0);
 }

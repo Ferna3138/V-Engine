@@ -42,17 +42,20 @@ vk::PhysicalDevice choose_physical_device(
  *  a queue family.
  * 
  * @param physicalDevice Physical device to query.
+ * @param surface Surface to present to, nullptr if
+ *      presentation is not needed.
  * @param queueType Type of queue being queried.
  * @return uint32_t the index of the queue family, 
  *  max upon failure.
  */
-uint32_t findQueueFamilyIndex(vk::PhysicalDevice physicalDevice, 
+uint32_t find_queue_family_index(vk::PhysicalDevice physicalDevice, 
     vk::QueueFlags queueType);
 
 /**
  * @brief Create a logical device object
  * 
  * @param physicalDevice Physical device to be abstracted
+ * @param surface Surface to present to
  * @param deletionQueue holds deletion functions
  * @return vk::Device An abstraction of the physical device
  */

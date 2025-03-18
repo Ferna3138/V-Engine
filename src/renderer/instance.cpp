@@ -97,19 +97,18 @@ vk::Instance make_instance(const char* applicationName, std::deque<std::function
 	const char** ppEnabledExtensionNames = (const char**)malloc(enabledExtensionCount * sizeof(char*));
 
 	uint32_t offset = 0;
-	for (; offset < glfwExtensionCount; ++offset) {
+	for (;offset < glfwExtensionCount; ++offset) {
 		ppEnabledExtensionNames[offset] = glfwExtensions[offset];
 	}
 	ppEnabledExtensionNames[offset++] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
 	ppEnabledExtensionNames[offset++] = VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME;
-
 	if (logger->is_enabled()) {
 		ppEnabledExtensionNames[offset++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
 	}
 
 	logger->print("extensions to be requested:");
 	logger->print_list(ppEnabledExtensionNames, enabledExtensionCount);
-	
+
 	/*
 	* Layers
 	*/
@@ -138,11 +137,11 @@ vk::Instance make_instance(const char* applicationName, std::deque<std::function
 	* from vulkan_structs.hpp:
 	*
 	* InstanceCreateInfo( VULKAN_HPP_NAMESPACE::InstanceCreateFlags     flags_                 = {},
-										const VULKAN_HPP_NAMESPACE::ApplicationInfo * pApplicationInfo_      = {},
-										uint32_t                                      enabledLayerCount_     = {},
-										const char * const *                          ppEnabledLayerNames_   = {},
-										uint32_t                                      enabledExtensionCount_ = {},
-										const char * const * ppEnabledExtensionNames_ = {} )
+										 const VULKAN_HPP_NAMESPACE::ApplicationInfo * pApplicationInfo_      = {},
+										 uint32_t                                      enabledLayerCount_     = {},
+										 const char * const *                          ppEnabledLayerNames_   = {},
+										 uint32_t                                      enabledExtensionCount_ = {},
+										 const char * const * ppEnabledExtensionNames_ = {} )
 	*/
 	vk::InstanceCreateInfo createInfo = vk::InstanceCreateInfo(
 		vk::InstanceCreateFlags() | vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR,

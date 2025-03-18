@@ -33,15 +33,17 @@ add_executable(V-Engine
     src/main.cpp
 )
 
+
 target_include_directories(V-Engine 
     PRIVATE
-    dependencies
+    dependencies 
 )
 
 target_link_libraries(V-Engine
     ${GLFW_LIB}
     Vulkan::Vulkan
 )
+
 
 # Organize source files into filters for Visual Studio
 foreach(source IN ITEMS 

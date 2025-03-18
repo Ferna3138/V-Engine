@@ -990,9 +990,8 @@ CMakeFiles/V-Engine.dir/src/main.cpp.o: \
   /Users/fernandoedelstein/Documents/GitHub/V-Engine/dependencies/vulkan/vulkan_structs.hpp \
   /Users/fernandoedelstein/Documents/GitHub/V-Engine/dependencies/vulkan/vulkan_funcs.hpp \
   /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/renderer/renderer.h \
-  /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/renderer/../logging/logger.h \
   /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/renderer/instance.h \
-  /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/renderer/device.h \
+  /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/renderer/../logging/logger.h \
   /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/controller/app.h \
   /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/controller/../logging/logger.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk/usr/include/c++/v1/thread \

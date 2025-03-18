@@ -3970,7 +3970,6 @@ CMakeFiles/V-Engine.dir/src/main.cpp.o
  /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/controller/app.h
  /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/logging/logger.h
  /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/logging/logger.h
- /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/renderer/device.h
  /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/renderer/instance.h
  /Users/fernandoedelstein/Documents/GitHub/V-Engine/src/renderer/renderer.h
  /usr/local/include/vk_video/vulkan_video_codec_h264std.h

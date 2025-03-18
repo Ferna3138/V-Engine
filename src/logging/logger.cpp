@@ -93,7 +93,7 @@ vk::DebugUtilsMessengerEXT Logger::make_debug_messenger(
 	}
 
 	/*
-	* DebugUtilsMessengerCreateInfoEXT( VULKAN_HPP_NAMESPACE::DebugUtilsMessengerCreateFlagsEXT flags_           = {},
+	* DebugUtilsMessengerCreateInfoEXT( VULKAN_HPP_NAMESPACE::DebugUtilsMessengerCreateFlagsEXT flags_		 = {},
 									VULKAN_HPP_NAMESPACE::DebugUtilsMessageSeverityFlagsEXT messageSeverity_ = {},
 									VULKAN_HPP_NAMESPACE::DebugUtilsMessageTypeFlagsEXT     messageType_     = {},
 									PFN_vkDebugUtilsMessengerCallbackEXT                    pfnUserCallback_ = {},
