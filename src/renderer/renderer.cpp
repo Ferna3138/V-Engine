@@ -13,14 +13,19 @@ Engine::Engine(GLFWwindow* window) :
 	logger->set_mode(false);
 
 	VkSurfaceKHR raw_surface;
+	glfwCreateWindowSurface(instance, window, nullptr, &raw_surface);
+	surface = raw_surface;
+	instanceDeletionQueue.push_back([this](vk::Instance instance) {
+		instance.destroySurfaceKHR(surface);
+	});
 
 	physicalDevice = choose_physical_device(instance);
 
 	logger->set_mode(true);
 	logicalDevice = create_logical_device(
-		physicalDevice, deviceDeletionQueue);
+		physicalDevice, surface, deviceDeletionQueue);
 	uint32_t graphicsQueueFamilyIndex = find_queue_family_index(
-		physicalDevice, vk::QueueFlagBits::eGraphics);
+		physicalDevice, surface, vk::QueueFlagBits::eGraphics);
 	graphicsQueue = logicalDevice.getQueue(graphicsQueueFamilyIndex, 0);
 }
 

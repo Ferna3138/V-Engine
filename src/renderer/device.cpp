@@ -78,6 +78,7 @@ vk::PhysicalDevice choose_physical_device(const vk::Instance& instance) {
 }
 
 uint32_t find_queue_family_index(vk::PhysicalDevice physicalDevice,
+	vk::SurfaceKHR surface,
     vk::QueueFlags queueType) {
 	
 	Logger* logger = Logger::get_logger();
@@ -89,8 +90,18 @@ uint32_t find_queue_family_index(vk::PhysicalDevice physicalDevice,
 		vk::QueueFamilyProperties queueFamily = queueFamilies[i];
 
 		bool canPresent = true;
+		if(surface){
+			if(physicalDevice.getSurfaceSupportKHR(i, surface).result == vk::Result::eSuccess){
+				canPresent = true;
+			}
+		}
+		else{
+			canPresent = true;
+		}
+
 
 		bool supported = false;
+
 		if (queueFamily.queueFlags & queueType) {
 			supported = true;
 		}
@@ -104,11 +115,12 @@ uint32_t find_queue_family_index(vk::PhysicalDevice physicalDevice,
 
 vk::Device create_logical_device(
     vk::PhysicalDevice physicalDevice,
+	vk::SurfaceKHR surface,
     std::deque<std::function<void(vk::Device)>>& deletionQueue) {
 	
 	Logger* logger = Logger::get_logger();
 
-	uint32_t graphicsIndex = find_queue_family_index(physicalDevice, vk::QueueFlagBits::eGraphics);
+	uint32_t graphicsIndex = find_queue_family_index(physicalDevice, surface, vk::QueueFlagBits::eGraphics);
 	float queuePriority = 1.0f;
 	vk::DeviceQueueCreateInfo queueInfo = vk::DeviceQueueCreateInfo(
 		vk::DeviceQueueCreateFlags(), graphicsIndex, 1, &queuePriority

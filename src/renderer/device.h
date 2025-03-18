@@ -49,6 +49,7 @@ vk::PhysicalDevice choose_physical_device(
  *  max upon failure.
  */
 uint32_t find_queue_family_index(vk::PhysicalDevice physicalDevice, 
+    vk::SurfaceKHR surface,
     vk::QueueFlags queueType);
 
 /**
@@ -61,4 +62,5 @@ uint32_t find_queue_family_index(vk::PhysicalDevice physicalDevice,
  */
 vk::Device create_logical_device(
     vk::PhysicalDevice physicalDevice,
+    vk::SurfaceKHR surface,
     std::deque<std::function<void(vk::Device)>>& deletionQueue);
