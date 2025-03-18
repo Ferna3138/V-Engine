@@ -42,7 +42,8 @@ class Engine {
         /**
         * @brief Stores destructors!
         */
-        std::deque<std::function<void(vk::Instance)>> deletionQueue;
+        std::deque<std::function<void(vk::Instance)>> instanceDeletionQueue;
+        std::deque<std::function<void(vk::Device)>> deviceDeletionQueue;
     
         /**
         * @brief the main instance
@@ -58,9 +59,22 @@ class Engine {
         * @brief Debug messenger
         */
         vk::DebugUtilsMessengerEXT debugMessenger = nullptr;
-
-             /**
-        * @brief A physical device
-        */
+    
+        /**
+         * @brief A physical device
+         * 
+         */
         vk::PhysicalDevice physicalDevice;
+    
+        /**
+         * @brief An abstraction of the physical device
+         * 
+         */
+        vk::Device logicalDevice;
+    
+        /**
+         * @brief Queues for work submission
+         * 
+         */
+        vk::Queue graphicsQueue;
     };
