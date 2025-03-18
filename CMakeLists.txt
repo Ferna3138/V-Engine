@@ -23,6 +23,8 @@ add_executable(V-Engine
     src/logging/logger.cpp
     src/logging/logger.h
 
+    src/renderer/device.cpp
+    src/renderer/device.h
     src/renderer/instance.cpp
     src/renderer/instance.h
     src/renderer/renderer.cpp
@@ -52,6 +54,8 @@ foreach(source IN ITEMS
     src/logging/logger.cpp
     src/logging/logger.h
 
+    src/renderer/device.cpp
+    src/renderer/device.h
     src/renderer/instance.cpp
     src/renderer/instance.h
     src/renderer/renderer.cpp

@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #include "../logging/logger.h"
 #include "instance.h"
+#include "device.h"
 
 /**
  * @brief Vroom vroom.
@@ -57,4 +58,9 @@ class Engine {
         * @brief Debug messenger
         */
         vk::DebugUtilsMessengerEXT debugMessenger = nullptr;
+
+             /**
+        * @brief A physical device
+        */
+        vk::PhysicalDevice physicalDevice;
     };

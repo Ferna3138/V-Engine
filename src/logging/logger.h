@@ -79,6 +79,8 @@ class Logger {
             vk::Instance& instance, vk::DispatchLoaderDynamic& dldi, 
             std::deque<std::function<void(vk::Instance)>>& deletionQueue);
     
+
+        void log(const vk::PhysicalDevice& device);
     private:
         /**
          * @brief whether the logger is enabled or not.

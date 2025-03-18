@@ -119,3 +119,37 @@ vk::DebugUtilsMessengerEXT Logger::make_debug_messenger(
 
 	return messenger;
 }
+
+void Logger::log(const vk::PhysicalDevice& device) {
+
+	if (!enabled) {
+		return;
+	}
+	vk::PhysicalDeviceProperties properties = device.getProperties();
+
+	std::cout << "Device name: " << properties.deviceName << std::endl;
+
+	std::cout << "Device type: ";
+	switch (properties.deviceType) {
+
+	case (vk::PhysicalDeviceType::eCpu):
+		std::cout << "CPU";
+		break;
+
+	case (vk::PhysicalDeviceType::eDiscreteGpu):
+		std::cout << "Discrete GPU";
+		break;
+
+	case (vk::PhysicalDeviceType::eIntegratedGpu):
+		std::cout << "Integrated GPU";
+		break;
+
+	case (vk::PhysicalDeviceType::eVirtualGpu):
+		std::cout << "Virtual GPU";
+		break;
+
+	default:
+		std::cout << "Other";
+	}
+	std::cout << std::endl;
+}
