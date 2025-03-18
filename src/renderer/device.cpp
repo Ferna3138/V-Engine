@@ -124,9 +124,14 @@ vk::Device create_logical_device(
 		ppEnabledLayers[0] = "VK_LAYER_KHRONOS_validation";
 	}
 
+    #ifdef __APPLE__
 	uint32_t enabledExtensionCount = 1;
 	const char** ppEnabledExtensions = (const char**) malloc(enabledExtensionCount * sizeof(char*));
 	ppEnabledExtensions[0] = "VK_KHR_portability_subset";
+    #elif _WIN64
+    uint32_t enabledExtensionCount = 0;
+	const char** ppEnabledExtensions = nullptr;
+    #endif
 
 	vk::DeviceCreateInfo deviceInfo = vk::DeviceCreateInfo(
 		vk::DeviceCreateFlags(),
