@@ -25,10 +25,14 @@ add_executable(V-Engine
 
     src/renderer/device.cpp
     src/renderer/device.h
+    src/renderer/frame.cpp
+    src/renderer/frame.h
     src/renderer/instance.cpp
     src/renderer/instance.h
     src/renderer/renderer.cpp
     src/renderer/renderer.h
+    src/renderer/swapchain.cpp
+    src/renderer/swapchain.h
 
     src/main.cpp
 )
@@ -58,10 +62,14 @@ foreach(source IN ITEMS
 
     src/renderer/device.cpp
     src/renderer/device.h
+    src/renderer/frame.cpp
+    src/renderer/frame.h
     src/renderer/instance.cpp
     src/renderer/instance.h
     src/renderer/renderer.cpp
     src/renderer/renderer.h
+    src/renderer/swapchain.cpp
+    src/renderer/swapchain.h
 
     src/main.cpp
 )

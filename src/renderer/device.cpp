@@ -137,12 +137,14 @@ vk::Device create_logical_device(
 	}
 
     #ifdef __APPLE__
-	uint32_t enabledExtensionCount = 1;
+	uint32_t enabledExtensionCount = 2;
 	const char** ppEnabledExtensions = (const char**) malloc(enabledExtensionCount * sizeof(char*));
 	ppEnabledExtensions[0] = "VK_KHR_portability_subset";
+	ppEnabledExtensions[1] = "VK_KHR_swapchain";
     #elif _WIN64
-    uint32_t enabledExtensionCount = 0;
-	const char** ppEnabledExtensions = nullptr;
+    uint32_t enabledExtensionCount = 1;
+	const char** ppEnabledExtensions = (const char**) malloc(enabledExtensionCount * sizeof(char*));
+	ppEnabledExtensions[0] = "VK_KHR_swapchain";
     #endif
 
 	vk::DeviceCreateInfo deviceInfo = vk::DeviceCreateInfo(

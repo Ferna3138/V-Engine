@@ -5,6 +5,8 @@
 #include <functional>
 #include "instance.h"
 #include "../logging/logger.h"
+#include "frame.h"
+#include "swapchain.h"
 
 /**
  * @brief Vroom vroom.
@@ -85,4 +87,16 @@ private:
      * 
      */
     vk::SurfaceKHR surface;
+
+    /**
+     * @brief The engine's swapchain
+     * 
+     */
+    Swapchain swapchain;
+
+    /**
+     * @brief Frames used for rendering
+     * 
+     */
+    std::vector<Frame> frames;
 };
