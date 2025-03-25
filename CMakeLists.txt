@@ -14,6 +14,12 @@ elseif(WIN32)
 endif()
 
 add_executable(V-Engine
+    shaders/compile.bat
+    shaders/shader.frag
+    shaders/shader.vert
+
+    src/backend/file.cpp
+    src/backend/file.h
     src/backend/glfw_backend.cpp
     src/backend/glfw_backend.h
     
@@ -33,6 +39,8 @@ add_executable(V-Engine
     src/renderer/instance.h
     src/renderer/renderer.cpp
     src/renderer/renderer.h
+    src/renderer/shader.cpp
+    src/renderer/shader.h
     src/renderer/swapchain.cpp
     src/renderer/swapchain.h
 
@@ -53,6 +61,12 @@ target_link_libraries(V-Engine
 
 # Organize source files into filters for Visual Studio
 foreach(source IN ITEMS 
+    shaders/compile.bat
+    shaders/shader.frag
+    shaders/shader.vert
+
+    src/backend/file.cpp
+    src/backend/file.h
     src/backend/glfw_backend.cpp
     src/backend/glfw_backend.h
 
@@ -66,10 +80,14 @@ foreach(source IN ITEMS
     src/renderer/device.h
     src/renderer/frame.cpp
     src/renderer/frame.h
+    src/renderer/image.cpp
+    src/renderer/image.h
     src/renderer/instance.cpp
     src/renderer/instance.h
     src/renderer/renderer.cpp
     src/renderer/renderer.h
+    src/renderer/shader.cpp
+    src/renderer/shader.h
     src/renderer/swapchain.cpp
     src/renderer/swapchain.h
 
