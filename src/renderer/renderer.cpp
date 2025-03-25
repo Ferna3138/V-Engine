@@ -37,7 +37,7 @@ Engine::Engine(GLFWwindow* window) :
 	std::vector<vk::Image> images = logicalDevice.getSwapchainImagesKHR(swapchain.chain).value;
 
 	for(uint32_t i = 0; i < images.size(); i++){
-		frames.push_back(Frame(images[i]));
+		frames.push_back(Frame(images[i], logicalDevice, swapchain.format.format, deviceDeletionQueue));
 	}
 
 	

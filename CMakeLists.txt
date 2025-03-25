@@ -27,6 +27,8 @@ add_executable(V-Engine
     src/renderer/device.h
     src/renderer/frame.cpp
     src/renderer/frame.h
+    src/renderer/image.cpp
+    src/renderer/image.h
     src/renderer/instance.cpp
     src/renderer/instance.h
     src/renderer/renderer.cpp
