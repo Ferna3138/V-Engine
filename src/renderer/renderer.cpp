@@ -27,6 +27,20 @@ Engine::Engine(GLFWwindow* window) :
 	uint32_t graphicsQueueFamilyIndex = find_queue_family_index(
 		physicalDevice, surface, vk::QueueFlagBits::eGraphics);
 	graphicsQueue = logicalDevice.getQueue(graphicsQueueFamilyIndex, 0);
+
+	int width, height;
+	glfwGetWindowSize(window, &width, &height);
+	swapchain.build(
+		logicalDevice, physicalDevice, surface, width, height, deviceDeletionQueue
+	);
+
+	std::vector<vk::Image> images = logicalDevice.getSwapchainImagesKHR(swapchain.chain).value;
+
+	for(uint32_t i = 0; i < images.size(); i++){
+		frames.push_back(Frame(images[i]));
+	}
+
+	
 }
 
 Engine::~Engine() {

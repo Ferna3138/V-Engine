@@ -88,18 +88,84 @@ public:
      */
     void log(const vk::PhysicalDevice& device);
 
-    /***
+    /**
      * @brief Logs a description of the queue families supported
      * by a device.
     */
     void log(const std::vector<vk::QueueFamilyProperties>& queueFamilies);
 
+    /**
+     * @brief Logs the capabilities of a surface.
+     * 
+     * @param capabilities The surface capabilities to report
+     */
+    void log(const vk::SurfaceCapabilitiesKHR& capabilities);
+
+    /**
+     * @brief Log a 2D extent
+     * 
+     * @param extent extent to report
+     * @param prefix prefix string. default is single tab
+     */
+    void log(const vk::Extent2D& extent, const char* prefix = "\t");
+
+    /**
+     * @brief Log a vector of strings
+     * 
+     * @param items list to report
+     * @param prefix prefix string. default is single tab
+     */
+    void log(const std::vector<std::string>& items, const char* prefix = "\t");
+
+    /**
+     * @brief log a set of surface formats
+     * 
+     * @param formats formats to report
+     */
+    void log(const std::vector<vk::SurfaceFormatKHR>& formats);
+
+    /**
+     * @brief log a set of present modes
+     * 
+     * @param modes present modes to report
+     */
+    void log(const std::vector<vk::PresentModeKHR>& modes);
 private:
     /**
      * @brief whether the logger is enabled or not.
      *
      */
     bool enabled;
+
+    /**
+     * @brief Describe the transform bits set within the given
+     *  bitmask
+     * 
+     * @param bits bitmask of transform flags
+     * @return std::vector<std::string> description of the bits
+     */
+    std::vector<std::string> parse_transform_bits(
+        vk::SurfaceTransformFlagsKHR bits);
+    
+    /**
+     * @brief Describe the alpha composite blend modes within
+     *  the given bitmask
+     * 
+     * @param bits bitmask of alpha composite flags
+     * @return std::vector<std::string> description of the bits
+     */
+    std::vector<std::string> parse_alpha_composite_bits(
+	    vk::CompositeAlphaFlagsKHR bits);
+    
+    /**
+     * @brief Describe the image usage flags within
+     *  the given bitmask
+     * 
+     * @param bits bitmask of image usage flags
+     * @return std::vector<std::string> description of the bits
+     */
+    std::vector<std::string> parse_image_usage_bits(
+        vk::ImageUsageFlags bits);
 };
 
 /**

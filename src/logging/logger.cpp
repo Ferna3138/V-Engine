@@ -7,8 +7,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 	VkDebugUtilsMessageTypeFlagsEXT messageType,
 	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-	void* pUserData
-) {
+	void* pUserData) {
 	std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
 
 	return VK_FALSE;
@@ -93,7 +92,7 @@ vk::DebugUtilsMessengerEXT Logger::make_debug_messenger(
 	}
 
 	/*
-	* DebugUtilsMessengerCreateInfoEXT( VULKAN_HPP_NAMESPACE::DebugUtilsMessengerCreateFlagsEXT flags_		 = {},
+	* DebugUtilsMessengerCreateInfoEXT( VULKAN_HPP_NAMESPACE::DebugUtilsMessengerCreateFlagsEXT flags_           = {},
 									VULKAN_HPP_NAMESPACE::DebugUtilsMessageSeverityFlagsEXT messageSeverity_ = {},
 									VULKAN_HPP_NAMESPACE::DebugUtilsMessageTypeFlagsEXT     messageType_     = {},
 									PFN_vkDebugUtilsMessengerCallbackEXT                    pfnUserCallback_ = {},
@@ -224,5 +223,293 @@ void Logger::log(const std::vector<vk::QueueFamilyProperties>& queueFamilies) {
 
 		std::cout << "\tFamily supports " 
 			<< queueFamily.queueCount << " queues." << std::endl;
+	}
+}
+
+void Logger::log(const vk::SurfaceCapabilitiesKHR& capabilities) {
+
+	if (!enabled) {
+		return;
+	}
+
+	/*
+	* typedef struct VkSurfaceCapabilitiesKHR {
+		uint32_t                         minImageCount;
+		uint32_t                         maxImageCount;
+		VkExtent2D                       currentExtent;
+		VkExtent2D                       minImageExtent;
+		VkExtent2D                       maxImageExtent;
+		uint32_t                         maxImageArrayLayers;
+		VkSurfaceTransformFlagsKHR       supportedTransforms;
+		VkSurfaceTransformFlagBitsKHR    currentTransform;
+		VkCompositeAlphaFlagsKHR         supportedCompositeAlpha;
+		VkImageUsageFlags                supportedUsageFlags;
+	} VkSurfaceCapabilitiesKHR;
+	*/
+	std::cout << "Swapchain can support the following surface capabilities:" << std::endl;
+
+	std::cout << "\tminimum image count: " 
+			<< capabilities.minImageCount << std::endl;
+	std::cout << "\tmaximum image count: " 
+			<< capabilities.maxImageCount << std::endl;
+
+	std::cout << "\tcurrent extent:" << std::endl;
+	log(capabilities.currentExtent, "\t\t");
+
+	std::cout << "\tminimum supported extent:" << std::endl;
+	log(capabilities.minImageExtent, "\t\t");
+
+	std::cout << "\tmaximum supported extent:" << std::endl;
+	log(capabilities.maxImageExtent, "\t\t");
+
+	std::cout << "\tmaximum image array layers: " 
+		<< capabilities.maxImageArrayLayers << std::endl;
+
+	std::cout << "\tsupported transforms:" << std::endl;
+	std::vector<std::string> stringList = 
+		parse_transform_bits(capabilities.supportedTransforms);
+	log(stringList, "\t\t");
+
+	std::cout << "\tcurrent transform:" << std::endl;
+	stringList = parse_transform_bits(capabilities.currentTransform);
+	log(stringList, "\t\t");
+
+	std::cout << "\tsupported alpha operations:" << std::endl;
+	stringList = parse_alpha_composite_bits(capabilities.supportedCompositeAlpha);
+	log(stringList, "\t\t");
+
+	std::cout << "\tsupported image usage:" << std::endl;
+	stringList = parse_image_usage_bits(capabilities.supportedUsageFlags);
+	log(stringList, "\t\t");
+}
+
+void Logger::log(const vk::Extent2D& extent, const char* prefix) {
+	
+	if (!enabled) {
+		return;
+	}
+
+	/*typedef struct VkExtent2D {
+		uint32_t    width;
+		uint32_t    height;
+	} VkExtent2D;
+	*/
+
+	std::cout << prefix << "width: " << extent.width << std::endl;
+	std::cout << prefix << "height: " << extent.height << std::endl;
+}
+
+std::vector<std::string> Logger::parse_transform_bits(
+	vk::SurfaceTransformFlagsKHR bits) {
+	
+	std::vector<std::string> result;
+
+	/*
+	* typedef enum VkSurfaceTransformFlagBitsKHR {
+		VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR = 0x00000001,
+		VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR = 0x00000002,
+		VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR = 0x00000004,
+		VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR = 0x00000008,
+		VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_BIT_KHR = 0x00000010,
+		VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_90_BIT_KHR = 0x00000020,
+		VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_180_BIT_KHR = 0x00000040,
+		VK_SURFACE_TRANSFORM_HORIZONTAL_MIRROR_ROTATE_270_BIT_KHR = 0x00000080,
+		VK_SURFACE_TRANSFORM_INHERIT_BIT_KHR = 0x00000100,
+	} VkSurfaceTransformFlagBitsKHR;
+	*/
+	if (bits & vk::SurfaceTransformFlagBitsKHR::eIdentity) {
+		result.push_back("identity");
+	}
+	if (bits & vk::SurfaceTransformFlagBitsKHR::eRotate90) {
+		result.push_back("90 degree rotation");
+	}
+	if (bits & vk::SurfaceTransformFlagBitsKHR::eRotate180) {
+		result.push_back("180 degree rotation");
+	}
+	if (bits & vk::SurfaceTransformFlagBitsKHR::eRotate270) {
+		result.push_back("270 degree rotation");
+	}
+	if (bits & vk::SurfaceTransformFlagBitsKHR::eHorizontalMirror) {
+		result.push_back("horizontal mirror");
+	}
+	if (bits & vk::SurfaceTransformFlagBitsKHR::eHorizontalMirrorRotate90) {
+		result.push_back("horizontal mirror, then 90 degree rotation");
+	}
+	if (bits & vk::SurfaceTransformFlagBitsKHR::eHorizontalMirrorRotate180) {
+		result.push_back("horizontal mirror, then 180 degree rotation");
+	}
+	if (bits & vk::SurfaceTransformFlagBitsKHR::eHorizontalMirrorRotate270) {
+		result.push_back("horizontal mirror, then 270 degree rotation");
+	}
+	if (bits & vk::SurfaceTransformFlagBitsKHR::eInherit) {
+		result.push_back("inherited");
+	}
+	return result;
+}
+
+std::vector<std::string> Logger::parse_alpha_composite_bits(
+	vk::CompositeAlphaFlagsKHR bits) {
+	
+	std::vector<std::string> result;
+
+	/*
+		typedef enum VkCompositeAlphaFlagBitsKHR {
+			VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR = 0x00000001,
+			VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR = 0x00000002,
+			VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR = 0x00000004,
+			VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR = 0x00000008,
+		} VkCompositeAlphaFlagBitsKHR;
+	*/
+	if (bits & vk::CompositeAlphaFlagBitsKHR::eOpaque) {
+		result.push_back("opaque (alpha ignored)");
+	}
+	if (bits & vk::CompositeAlphaFlagBitsKHR::ePreMultiplied) {
+		result.push_back("pre multiplied (alpha expected to already be multiplied in image)");
+	}
+	if (bits & vk::CompositeAlphaFlagBitsKHR::ePostMultiplied) {
+		result.push_back("post multiplied (alpha will be applied during composition)");
+	}
+	if (bits & vk::CompositeAlphaFlagBitsKHR::eInherit) {
+		result.push_back("inherited");
+	}
+
+	return result;
+}
+
+std::vector<std::string> Logger::parse_image_usage_bits(
+	vk::ImageUsageFlags bits) {
+	
+	std::vector<std::string> result;
+
+	/*
+		typedef enum VkImageUsageFlagBits {
+			VK_IMAGE_USAGE_TRANSFER_SRC_BIT = 0x00000001,
+			VK_IMAGE_USAGE_TRANSFER_DST_BIT = 0x00000002,
+			VK_IMAGE_USAGE_SAMPLED_BIT = 0x00000004,
+			VK_IMAGE_USAGE_STORAGE_BIT = 0x00000008,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT = 0x00000010,
+			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT = 0x00000020,
+			VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT = 0x00000040,
+			VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT = 0x00000080,
+			#ifdef VK_ENABLE_BETA_EXTENSIONS
+				// Provided by VK_KHR_video_decode_queue
+				VK_IMAGE_USAGE_VIDEO_DECODE_DST_BIT_KHR = 0x00000400,
+			#endif
+			#ifdef VK_ENABLE_BETA_EXTENSIONS
+				// Provided by VK_KHR_video_decode_queue
+				VK_IMAGE_USAGE_VIDEO_DECODE_SRC_BIT_KHR = 0x00000800,
+			#endif
+			#ifdef VK_ENABLE_BETA_EXTENSIONS
+				// Provided by VK_KHR_video_decode_queue
+				VK_IMAGE_USAGE_VIDEO_DECODE_DPB_BIT_KHR = 0x00001000,
+			#endif
+			// Provided by VK_EXT_fragment_density_map
+			VK_IMAGE_USAGE_FRAGMENT_DENSITY_MAP_BIT_EXT = 0x00000200,
+			// Provided by VK_KHR_fragment_shading_rate
+			VK_IMAGE_USAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR = 0x00000100,
+			#ifdef VK_ENABLE_BETA_EXTENSIONS
+				// Provided by VK_KHR_video_encode_queue
+				VK_IMAGE_USAGE_VIDEO_ENCODE_DST_BIT_KHR = 0x00002000,
+			#endif
+			#ifdef VK_ENABLE_BETA_EXTENSIONS
+				// Provided by VK_KHR_video_encode_queue
+				VK_IMAGE_USAGE_VIDEO_ENCODE_SRC_BIT_KHR = 0x00004000,
+			#endif
+			#ifdef VK_ENABLE_BETA_EXTENSIONS
+				// Provided by VK_KHR_video_encode_queue
+				VK_IMAGE_USAGE_VIDEO_ENCODE_DPB_BIT_KHR = 0x00008000,
+			#endif
+			// Provided by VK_HUAWEI_invocation_mask
+			VK_IMAGE_USAGE_INVOCATION_MASK_BIT_HUAWEI = 0x00040000,
+			// Provided by VK_NV_shading_rate_image
+			VK_IMAGE_USAGE_SHADING_RATE_IMAGE_BIT_NV = VK_IMAGE_USAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR,
+	} VkImageUsageFlagBits;
+	*/
+	if (bits & vk::ImageUsageFlagBits::eTransferSrc) {
+		result.push_back("transfer src: image can be used as the source of a transfer command.");
+	}
+	if (bits & vk::ImageUsageFlagBits::eTransferDst) {
+		result.push_back("transfer dst: image can be used as the destination of a transfer command.");
+	}
+	if (bits & vk::ImageUsageFlagBits::eSampled) {
+		result.push_back("sampled: image can be used to create a VkImageView suitable for occupying a \
+VkDescriptorSet slot either of type VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE or \
+VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, and be sampled by a shader.");
+	}
+	if (bits & vk::ImageUsageFlagBits::eStorage) {
+		result.push_back("storage: image can be used to create a VkImageView suitable for occupying a \
+VkDescriptorSet slot of type VK_DESCRIPTOR_TYPE_STORAGE_IMAGE.");
+	}
+	if (bits & vk::ImageUsageFlagBits::eColorAttachment) {
+		result.push_back("color attachment: image can be used to create a VkImageView suitable for use as \
+a color or resolve attachment in a VkFramebuffer.");
+	}
+	if (bits & vk::ImageUsageFlagBits::eDepthStencilAttachment) {
+		result.push_back("depth/stencil attachment: image can be used to create a VkImageView \
+suitable for use as a depth/stencil or depth/stencil resolve attachment in a VkFramebuffer.");
+	}
+	if (bits & vk::ImageUsageFlagBits::eTransientAttachment) {
+		result.push_back("transient attachment: implementations may support using memory allocations \
+with the VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT to back an image with this usage. This \
+bit can be set for any image that can be used to create a VkImageView suitable for use as \
+a color, resolve, depth/stencil, or input attachment.");
+	}
+	if (bits & vk::ImageUsageFlagBits::eInputAttachment) {
+		result.push_back("input attachment: image can be used to create a VkImageView suitable for \
+occupying VkDescriptorSet slot of type VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT; be read from \
+a shader as an input attachment; and be used as an input attachment in a framebuffer.");
+	}
+	if (bits & vk::ImageUsageFlagBits::eFragmentDensityMapEXT) {
+		result.push_back("fragment density map: image can be used to create a VkImageView suitable \
+for use as a fragment density map image.");
+	}
+	if (bits & vk::ImageUsageFlagBits::eFragmentShadingRateAttachmentKHR) {
+		result.push_back("fragment shading rate attachment: image can be used to create a VkImageView \
+suitable for use as a fragment shading rate attachment or shading rate image");
+	}
+	return result;
+}
+
+void Logger::log(const std::vector<std::string>& items, const char* prefix) {
+
+	if (!enabled) {
+		return;
+	}
+
+	for (std::string item : items) {
+		std::cout << prefix << item << std::endl;
+	}
+}
+
+void Logger::log(const std::vector<vk::SurfaceFormatKHR>& formats) {
+
+	if (!enabled) {
+		return;
+	}
+
+	for (vk::SurfaceFormatKHR supportedFormat : formats) {
+		/*
+		* typedef struct VkSurfaceFormatKHR {
+			VkFormat           format;
+			VkColorSpaceKHR    colorSpace;
+		} VkSurfaceFormatKHR;
+		*/
+
+		std::cout << "supported pixel format: " 
+			<< vk::to_string(supportedFormat.format) 
+			<< ", supported color space: " 
+			<< vk::to_string(supportedFormat.colorSpace) 
+			<< std::endl;
+	}
+}
+
+void Logger::log(const std::vector<vk::PresentModeKHR>& modes) {
+
+	if (!enabled) {
+		return;
+	}
+
+	for (vk::PresentModeKHR presentMode : modes) {
+		std::cout << '\t' << vk::to_string(presentMode) << std::endl;
 	}
 }
