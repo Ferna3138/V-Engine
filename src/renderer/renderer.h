@@ -99,4 +99,10 @@ private:
      * 
      */
     std::vector<Frame> frames;
+
+    /**
+     * @brief shader objects
+     *
+     */
+    std::vector<vk::ShaderEXT> shaders;
 };

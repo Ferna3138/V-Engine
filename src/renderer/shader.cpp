@@ -54,6 +54,10 @@ std::vector<vk::ShaderEXT> make_shader_objects(vk::Device logicalDevice,
     fragmentInfo.setPCode(fragmentSrc.data());
     fragmentInfo.setPName(pName);
 
+    std::vector<vk::ShaderCreateInfoEXT> shaderInfo;
+    shaderInfo.push_back(vertexInfo);
+    shaderInfo.push_back(fragmentInfo);
+
     /*
        VKAPI_ATTR VkResult VKAPI_CALL vkCreateShadersEXT(
            VkDevice                     device,
@@ -62,10 +66,6 @@ std::vector<vk::ShaderEXT> make_shader_objects(vk::Device logicalDevice,
            const VkAllocationCallbacks* pAllocator,
            VkShaderEXT*                 pShaders);
    */
-
-    std::vector<vk::ShaderCreateInfoEXT> shaderInfo;
-    shaderInfo.push_back(vertexInfo);
-    shaderInfo.push_back(fragmentInfo);
 
     auto result = logicalDevice.createShadersEXT(shaderInfo, nullptr, dl);
     std::vector<vk::ShaderEXT> shaders;

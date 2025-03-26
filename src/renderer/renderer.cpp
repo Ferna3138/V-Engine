@@ -1,5 +1,6 @@
 #include "renderer.h"
 #include "device.h"
+#include "shader.h"
 
 Engine::Engine(GLFWwindow* window) :
 	window(window) {
@@ -40,6 +41,9 @@ Engine::Engine(GLFWwindow* window) :
 		frames.push_back(Frame(images[i], logicalDevice, swapchain.format.format, deviceDeletionQueue));
 	}
 
+	shaders = make_shader_objects(logicalDevice,
+		"../shaders/vertex.spv", "../shaders/fragment.spv", dldi,
+		deviceDeletionQueue);
 	
 }
 
