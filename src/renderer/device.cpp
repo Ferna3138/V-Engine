@@ -128,6 +128,8 @@ vk::Device create_logical_device(
 
 	vk::PhysicalDeviceFeatures deviceFeatures = vk::PhysicalDeviceFeatures();
 	vk::PhysicalDeviceShaderObjectFeaturesEXT shaderFeatures = vk::PhysicalDeviceShaderObjectFeaturesEXT(1);
+	vk::PhysicalDeviceDynamicRenderingFeaturesKHR dynamicFeatures = vk::PhysicalDeviceDynamicRenderingFeaturesKHR(1);
+	shaderFeatures.pNext = &dynamicFeatures;
 
 	uint32_t enabled_layer_count = 1;
 	const char** ppEnabledLayers = nullptr;
@@ -138,16 +140,18 @@ vk::Device create_logical_device(
 	}
 
     #ifdef __APPLE__
-	uint32_t enabledExtensionCount = 3;
+	uint32_t enabledExtensionCount = 4;
 	const char** ppEnabledExtensions = (const char**) malloc(enabledExtensionCount * sizeof(char*));
 	ppEnabledExtensions[0] = "VK_KHR_portability_subset";
 	ppEnabledExtensions[1] = "VK_KHR_swapchain";
-	ppEnabledExtensions[2] = "VK_EXT_shader_object";
+	ppEnabledExtensions[2] = "VK_KHR_dynamic_rendering";
+	ppEnabledExtensions[3] = "VK_EXT_shader_object";
     #elif _WIN64
-    uint32_t enabledExtensionCount = 2;
+    uint32_t enabledExtensionCount = 3;
 	const char** ppEnabledExtensions = (const char**) malloc(enabledExtensionCount * sizeof(char*));
 	ppEnabledExtensions[0] = "VK_KHR_swapchain";
 	ppEnabledExtensions[1] = "VK_EXT_shader_object";
+	ppEnabledExtensions[2] = "VK_KHR_dynamic_rendering";
     #endif
 
 	vk::DeviceCreateInfo deviceInfo = vk::DeviceCreateInfo(

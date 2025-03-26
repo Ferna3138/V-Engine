@@ -7,6 +7,7 @@
 #include "../logging/logger.h"
 #include "frame.h"
 #include "swapchain.h"
+#include <vector>
 
 /**
  * @brief Vroom vroom.
@@ -28,6 +29,11 @@ public:
      *
      */
     ~Engine();
+
+    /**
+    * @brief draw something!
+    */
+    void draw();
 
 private:
 
@@ -66,37 +72,37 @@ private:
 
     /**
      * @brief A physical device
-     * 
+     *
      */
     vk::PhysicalDevice physicalDevice;
 
     /**
      * @brief An abstraction of the physical device
-     * 
+     *
      */
     vk::Device logicalDevice;
 
     /**
      * @brief Queues for work submission
-     * 
+     *
      */
     vk::Queue graphicsQueue;
 
     /**
      * @brief Surface to present to
-     * 
+     *
      */
     vk::SurfaceKHR surface;
 
     /**
      * @brief The engine's swapchain
-     * 
+     *
      */
     Swapchain swapchain;
 
     /**
      * @brief Frames used for rendering
-     * 
+     *
      */
     std::vector<Frame> frames;
 
@@ -105,4 +111,14 @@ private:
      *
      */
     std::vector<vk::ShaderEXT> shaders;
+
+    /**
+    * @brief memory pool for command buffer allocation
+    */
+    vk::CommandPool commandPool;
+
+    /**
+    * @brief Rendering info
+    */
+    vk::RenderingInfoKHR renderingInfo;
 };

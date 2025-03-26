@@ -1,6 +1,7 @@
 #include "renderer.h"
 #include "device.h"
 #include "shader.h"
+#include "command.h"
 
 Engine::Engine(GLFWwindow* window) :
 	window(window) {
@@ -44,7 +45,38 @@ Engine::Engine(GLFWwindow* window) :
 	shaders = make_shader_objects(logicalDevice,
 		"../shaders/vertex.spv", "../shaders/fragment.spv", dldi,
 		deviceDeletionQueue);
-	
+
+	commandPool = make_command_pool(logicalDevice, graphicsQueueFamilyIndex,
+		deviceDeletionQueue);
+
+	for (uint32_t i = 0; i < images.size(); ++i) {
+		frames[i].set_command_buffer(
+			allocate_command_buffer(logicalDevice, commandPool), shaders, swapchain.extent, dldi);
+	}
+}
+
+void Engine::draw() {
+
+	uint32_t imageIndex{ 0 };
+
+	vk::SubmitInfo submitInfo = {};
+
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &frames[0].commandBuffer;
+
+	graphicsQueue.submit(submitInfo);
+
+	graphicsQueue.waitIdle();
+
+	vk::PresentInfoKHR presentInfo = {};
+
+	presentInfo.swapchainCount = 1;
+	presentInfo.pSwapchains = &swapchain.chain;
+
+	presentInfo.pImageIndices = &imageIndex;
+
+	graphicsQueue.presentKHR(presentInfo);
+	graphicsQueue.waitIdle();
 }
 
 Engine::~Engine() {

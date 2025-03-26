@@ -26,6 +26,18 @@ public:
         std::deque<std::function<void(vk::Device)>>& deletionQueue);
 
     /**
+    * @brief Set (and record) the command buffer
+    *
+    * @param newCommandBuffer the command buffer to record to
+    * @param shaders shader objects to use
+    * @param framesize size of the screen
+    * @param dl dynamic loader
+    */
+    void set_command_buffer(vk::CommandBuffer newCommandBuffer,
+        std::vector<vk::ShaderEXT>& shaders, vk::Extent2D frameSize,
+        vk::DispatchLoaderDynamic& dl);
+
+    /**
      * @brief swapchain image to render to
      *
      */
@@ -36,4 +48,37 @@ public:
      *
      */
     vk::ImageView imageView;
+
+    /**
+    * @brief for recording drawing commands
+    *
+    */
+    vk::CommandBuffer commandBuffer;
+
+private:
+
+    /**
+    * @brief Build a description of the rendering info
+    *
+    * @param framesize size of the screen
+    */
+    void build_rendering_info(vk::Extent2D frameSize);
+
+    /**
+    * @brief build a description of the color attachment
+    *
+    */
+    void build_color_attachment();
+
+    /**
+    * @brief title says it all
+    *
+    */
+    void annoying_boilerplate_that_dynamic_rendering_was_meant_to_spare_us(
+        vk::Extent2D frameSize, vk::DispatchLoaderDynamic& dl);
+
+    vk::RenderingInfoKHR renderingInfo = {};
+
+    vk::RenderingAttachmentInfoKHR colorAttachment = {};
+
 };

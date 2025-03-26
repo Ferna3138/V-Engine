@@ -2,7 +2,7 @@
 #include "../logging/logger.h"
 
 void Swapchain::build(
-    vk::Device logicalDevice, vk::PhysicalDevice physicalDevice, 
+    vk::Device logicalDevice, vk::PhysicalDevice physicalDevice,
     vk::SurfaceKHR surface, uint32_t width, uint32_t height,
     std::deque<std::function<void(vk::Device)>>& deviceDeletionQueue) {
 
@@ -44,10 +44,10 @@ void Swapchain::build(
     VULKAN_HPP_NAMESPACE::Bool32         clipped_      = {},
     VULKAN_HPP_NAMESPACE::SwapchainKHR   oldSwapchain_ = {} ) VULKAN_HPP_NOEXCEPT
     */
-    vk::SwapchainCreateInfoKHR createInfo = 
-    vk::SwapchainCreateInfoKHR(vk::SwapchainCreateFlagsKHR(), 
-        surface, imageCount, format.format, format.colorSpace,
-        extent, 1, vk::ImageUsageFlagBits::eColorAttachment);
+    vk::SwapchainCreateInfoKHR createInfo =
+        vk::SwapchainCreateInfoKHR(vk::SwapchainCreateFlagsKHR(),
+            surface, imageCount, format.format, format.colorSpace,
+            extent, 1, vk::ImageUsageFlagBits::eColorAttachment);
 
     createInfo.preTransform = support.capabilities.currentTransform;
     createInfo.presentMode = presentMode;
@@ -59,10 +59,10 @@ void Swapchain::build(
     if (result.result == vk::Result::eSuccess) {
         chain = result.value;
 
-        deviceDeletionQueue.push_back([this, logger](vk::Device device){
+        deviceDeletionQueue.push_back([this, logger](vk::Device device) {
             logger->print("Destroyed swapchain");
             device.destroySwapchainKHR(chain);
-        });
+            });
     }
     else {
         logger->print("failed to create swap chain!");
@@ -70,25 +70,26 @@ void Swapchain::build(
 }
 
 SurfaceDetails Swapchain::query_surface_support(
-        vk::PhysicalDevice physicalDevice, 
-        vk::SurfaceKHR surface) {
+    vk::PhysicalDevice physicalDevice,
+    vk::SurfaceKHR surface) {
 
     Logger* logger = Logger::get_logger();
-	
+
     SurfaceDetails support;
     support.capabilities = physicalDevice
         .getSurfaceCapabilitiesKHR(surface).value;
-	logger->log(support.capabilities);
-	
+    logger->log(support.capabilities);
+
     support.formats = physicalDevice
         .getSurfaceFormatsKHR(surface).value;
     logger->log(support.formats);
 
-	support.presentModes = physicalDevice
+    support.presentModes = physicalDevice
         .getSurfacePresentModesKHR(surface).value;
+    logger->print("Supported Present Modes:");
     logger->log(support.presentModes);
-	
-	return support;
+
+    return support;
 }
 
 vk::SurfaceFormatKHR Swapchain::choose_surface_format(
@@ -106,7 +107,7 @@ vk::SurfaceFormatKHR Swapchain::choose_surface_format(
 
 vk::PresentModeKHR Swapchain::choose_present_mode(
     std::vector<vk::PresentModeKHR> presentModes) {
-    
+
     for (vk::PresentModeKHR presentMode : presentModes) {
         if (presentMode == vk::PresentModeKHR::eMailbox) {
             return presentMode;
@@ -117,7 +118,7 @@ vk::PresentModeKHR Swapchain::choose_present_mode(
 }
 
 vk::Extent2D Swapchain::choose_extent(
-    uint32_t width, uint32_t height, 
+    uint32_t width, uint32_t height,
     vk::SurfaceCapabilitiesKHR capabilities) {
 
     if (capabilities.currentExtent.width != UINT32_MAX) {
@@ -127,7 +128,7 @@ vk::Extent2D Swapchain::choose_extent(
         vk::Extent2D extent = { width, height };
 
         extent.width = std::min(
-            capabilities.maxImageExtent.width, 
+            capabilities.maxImageExtent.width,
             std::max(capabilities.minImageExtent.width, extent.width)
         );
 
