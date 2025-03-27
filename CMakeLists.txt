@@ -6,13 +6,15 @@ set(CMAKE_CXX_STANDARD 20)
 
 find_package(Vulkan REQUIRED)
 
-set(SHADERC_LIB ${CMAKE_SOURCE_DIR}/dependencies/lib/shaderc_combined.lib)
+
 
 # Set GLFW paths based on platform
 if(APPLE)
     set(GLFW_LIB ${CMAKE_SOURCE_DIR}/dependencies/lib-arm64/libglfw.3.dylib)
+    set(SHADERC_LIB ${CMAKE_SOURCE_DIR}/dependencies/lib/libshaderc_shared.1.dylib)
 elseif(WIN32)
     set(GLFW_LIB ${CMAKE_SOURCE_DIR}/dependencies/lib-vc2022/glfw3.lib)
+    set(SHADERC_LIB ${CMAKE_SOURCE_DIR}/dependencies/lib/shaderc_combined.lib)
 endif()
 
 add_executable(V-Engine

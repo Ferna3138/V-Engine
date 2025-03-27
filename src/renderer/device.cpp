@@ -126,10 +126,15 @@ vk::Device create_logical_device(
 		vk::DeviceQueueCreateFlags(), graphicsIndex, 1, &queuePriority
 	);
 
+	#ifdef __WIN64
 	vk::PhysicalDeviceFeatures deviceFeatures = vk::PhysicalDeviceFeatures();
 	vk::PhysicalDeviceShaderObjectFeaturesEXT shaderFeatures = vk::PhysicalDeviceShaderObjectFeaturesEXT(1);
 	vk::PhysicalDeviceDynamicRenderingFeaturesKHR dynamicFeatures = vk::PhysicalDeviceDynamicRenderingFeaturesKHR(1);
 	shaderFeatures.pNext = &dynamicFeatures;
+	#elif __APPLE__
+	vk::PhysicalDeviceFeatures deviceFeatures = vk::PhysicalDeviceFeatures();
+	vk::PhysicalDeviceDynamicRenderingFeaturesKHR shaderFeatures = vk::PhysicalDeviceDynamicRenderingFeaturesKHR(1);
+	#endif
 
 	uint32_t enabled_layer_count = 1;
 	const char** ppEnabledLayers = nullptr;
@@ -139,13 +144,12 @@ vk::Device create_logical_device(
 		ppEnabledLayers[0] = "VK_LAYER_KHRONOS_validation";
 	}
 
-    #ifdef __APPLE__
-	uint32_t enabledExtensionCount = 4;
+    #ifdef __APPLE__	
+	uint32_t enabledExtensionCount = 3;
 	const char** ppEnabledExtensions = (const char**) malloc(enabledExtensionCount * sizeof(char*));
 	ppEnabledExtensions[0] = "VK_KHR_portability_subset";
 	ppEnabledExtensions[1] = "VK_KHR_swapchain";
 	ppEnabledExtensions[2] = "VK_KHR_dynamic_rendering";
-	ppEnabledExtensions[3] = "VK_EXT_shader_object";
     #elif _WIN64
     uint32_t enabledExtensionCount = 3;
 	const char** ppEnabledExtensions = (const char**) malloc(enabledExtensionCount * sizeof(char*));
