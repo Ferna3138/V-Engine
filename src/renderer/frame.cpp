@@ -39,7 +39,7 @@ void Frame::set_command_buffer(vk::CommandBuffer newCommandBuffer,
 		vk::ShaderStageFlagBits::eFragment
 	};
 	commandBuffer.bindShadersEXT(stages, shaders, dl);
-
+	
 	commandBuffer.draw(3, 1, 0, 0);
 
 	commandBuffer.endRenderingKHR(dl);

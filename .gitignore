@@ -401,3 +401,4 @@ FodyWeavers.xsd
 
 
 build/
+dependencies/lib/shaderc_combinedd.lib
