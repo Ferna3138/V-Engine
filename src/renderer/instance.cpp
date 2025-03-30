@@ -90,7 +90,7 @@ vk::Instance make_instance(const char* applicationName, std::deque<std::function
 	uint32_t glfwExtensionCount = 0;
 	const char** glfwExtensions;
 	glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-	uint32_t enabledExtensionCount = glfwExtensionCount + 2;
+	uint32_t enabledExtensionCount = glfwExtensionCount;
 	if (logger->is_enabled()) {
 		enabledExtensionCount++;
 	}
@@ -100,8 +100,6 @@ vk::Instance make_instance(const char* applicationName, std::deque<std::function
 	for (;offset < glfwExtensionCount; ++offset) {
 		ppEnabledExtensionNames[offset] = glfwExtensions[offset];
 	}
-	ppEnabledExtensionNames[offset++] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
-	ppEnabledExtensionNames[offset++] = VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME;
 	if (logger->is_enabled()) {
 		ppEnabledExtensionNames[offset++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
 	}
@@ -144,13 +142,13 @@ vk::Instance make_instance(const char* applicationName, std::deque<std::function
 										 const char * const * ppEnabledExtensionNames_ = {} )
 	*/
 	vk::InstanceCreateInfo createInfo = vk::InstanceCreateInfo(
-		vk::InstanceCreateFlags() | vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR,
+		vk::InstanceCreateFlags(),
 		&appInfo,
 		enabledLayerCount, ppEnabledLayerNames,
 		enabledExtensionCount, ppEnabledExtensionNames
 	);
 
-	vk::ResultValue<vk::Instance> instanceAttempt= vk::createInstance(createInfo);
+	vk::ResultValue<vk::Instance> instanceAttempt = vk::createInstance(createInfo);
 	if (instanceAttempt.result != vk::Result::eSuccess) {
 		logger->print("Failed to create Instance!");
 		return nullptr;
@@ -162,7 +160,7 @@ vk::Instance make_instance(const char* applicationName, std::deque<std::function
 		instance.destroy();
 		logger->print("Deleted Instance!");
 		});
-	
+
 	free(ppEnabledExtensionNames);
 	if (ppEnabledLayerNames) {
 		free(ppEnabledLayerNames);

@@ -8,6 +8,8 @@
 #include "frame.h"
 #include "swapchain.h"
 #include <vector>
+#include <sstream>
+#include "synchronisation.h"
 
 /**
  * @brief Vroom vroom.
@@ -34,6 +36,8 @@ public:
     * @brief draw something!
     */
     void draw();
+
+    void update_timing();
 
 private:
 
@@ -121,4 +125,24 @@ private:
     * @brief Rendering info
     */
     vk::RenderingInfoKHR renderingInfo;
+
+    /**
+    * @brief signalled upon successful image aquisition from swapchain
+    *
+    */
+    vk::Semaphore imageAquiredSemaphore;
+
+    /**
+    * @brief signalled upon successful render of an image
+    */
+    vk::Semaphore renderFinishedSemaphore;
+
+    /**
+    * @brief signalled upon successful render of an image
+    */
+    vk::Fence renderFinishedFence;
+
+    double lastTime, currentTime;
+    int numFrames;
+    float frameTime;
 };

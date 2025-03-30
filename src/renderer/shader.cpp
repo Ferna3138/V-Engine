@@ -76,11 +76,9 @@ void compile_file_to_assembly(CompilationInfo& info) {
     //compile
     shaderc::AssemblyCompilationResult result = compiler.CompileGlslToSpvAssembly(
         info.source.data(), info.source.size(), info.kind, info.fileName, info.options);
-    
     if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
         logger->print(result.GetErrorMessage());
     }
-
 
     //copy result into info for next compilation operation
     const char* src = result.cbegin();

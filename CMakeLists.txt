@@ -49,6 +49,8 @@ add_executable(V-Engine
     src/renderer/shader.h
     src/renderer/swapchain.cpp
     src/renderer/swapchain.h
+    src/renderer/synchronisation.cpp
+    src/renderer/synchronisation.h
 
     src/main.cpp
 )
@@ -99,6 +101,8 @@ foreach(source IN ITEMS
     src/renderer/shader.h
     src/renderer/swapchain.cpp
     src/renderer/swapchain.h
+    src/renderer/synchronisation.cpp
+    src/renderer/synchronisation.h
 
     src/main.cpp
 )

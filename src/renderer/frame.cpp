@@ -27,7 +27,7 @@ void Frame::set_command_buffer(vk::CommandBuffer newCommandBuffer,
 	transition_image_layout(commandBuffer, image,
 		vk::ImageLayout::eUndefined, vk::ImageLayout::eAttachmentOptimal,
 		vk::AccessFlagBits::eNone, vk::AccessFlagBits::eColorAttachmentWrite,
-		vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eFragmentShader);
+		vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eColorAttachmentOutput);
 
 	annoying_boilerplate_that_dynamic_rendering_was_meant_to_spare_us(
 		frameSize, dl);
@@ -39,7 +39,7 @@ void Frame::set_command_buffer(vk::CommandBuffer newCommandBuffer,
 		vk::ShaderStageFlagBits::eFragment
 	};
 	commandBuffer.bindShadersEXT(stages, shaders, dl);
-	
+
 	commandBuffer.draw(3, 1, 0, 0);
 
 	commandBuffer.endRenderingKHR(dl);
@@ -47,7 +47,7 @@ void Frame::set_command_buffer(vk::CommandBuffer newCommandBuffer,
 	transition_image_layout(commandBuffer, image,
 		vk::ImageLayout::eAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR,
 		vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eNone,
-		vk::PipelineStageFlagBits::eFragmentShader, vk::PipelineStageFlagBits::eBottomOfPipe);
+		vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eBottomOfPipe);
 
 	commandBuffer.end();
 }
@@ -133,7 +133,8 @@ void Frame::annoying_boilerplate_that_dynamic_rendering_was_meant_to_spare_us(
 	equation.dstColorBlendFactor = vk::BlendFactor::eZero;
 	equation.srcColorBlendFactor = vk::BlendFactor::eOne;
 	commandBuffer.setColorBlendEquationEXT(0, equation, dl);
-	vk::ColorComponentFlags colorWriteMask = vk::ColorComponentFlagBits::eR
+	vk::ColorComponentFlags colorWriteMask = 
+		  vk::ColorComponentFlagBits::eR
 		| vk::ColorComponentFlagBits::eG
 		| vk::ColorComponentFlagBits::eB
 		| vk::ColorComponentFlagBits::eA;
