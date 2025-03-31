@@ -8,8 +8,6 @@
 #include "frame.h"
 #include "swapchain.h"
 #include <vector>
-#include <sstream>
-#include "synchronisation.h"
 
 /**
  * @brief Vroom vroom.
@@ -76,43 +74,43 @@ private:
 
     /**
      * @brief A physical device
-     *
+     * 
      */
     vk::PhysicalDevice physicalDevice;
 
     /**
      * @brief An abstraction of the physical device
-     *
+     * 
      */
     vk::Device logicalDevice;
 
     /**
      * @brief Queues for work submission
-     *
+     * 
      */
     vk::Queue graphicsQueue;
 
     /**
      * @brief Surface to present to
-     *
+     * 
      */
     vk::SurfaceKHR surface;
 
     /**
      * @brief The engine's swapchain
-     *
+     * 
      */
     Swapchain swapchain;
 
     /**
      * @brief Frames used for rendering
-     *
+     * 
      */
     std::vector<Frame> frames;
 
     /**
      * @brief shader objects
-     *
+     * 
      */
     std::vector<vk::ShaderEXT> shaders;
 
@@ -121,28 +119,9 @@ private:
     */
     vk::CommandPool commandPool;
 
-    /**
-    * @brief Rendering info
-    */
-    vk::RenderingInfoKHR renderingInfo;
-
-    /**
-    * @brief signalled upon successful image aquisition from swapchain
-    *
-    */
-    vk::Semaphore imageAquiredSemaphore;
-
-    /**
-    * @brief signalled upon successful render of an image
-    */
-    vk::Semaphore renderFinishedSemaphore;
-
-    /**
-    * @brief signalled upon successful render of an image
-    */
-    vk::Fence renderFinishedFence;
+    uint32_t frameIndex = 0;
 
     double lastTime, currentTime;
     int numFrames;
-    float frameTime;
+    float frameTime = 0.0f;
 };

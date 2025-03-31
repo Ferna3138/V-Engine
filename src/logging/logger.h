@@ -136,36 +136,6 @@ private:
      *
      */
     bool enabled;
-
-    /**
-     * @brief Describe the transform bits set within the given
-     *  bitmask
-     * 
-     * @param bits bitmask of transform flags
-     * @return std::vector<std::string> description of the bits
-     */
-    std::vector<std::string> parse_transform_bits(
-        vk::SurfaceTransformFlagsKHR bits);
-    
-    /**
-     * @brief Describe the alpha composite blend modes within
-     *  the given bitmask
-     * 
-     * @param bits bitmask of alpha composite flags
-     * @return std::vector<std::string> description of the bits
-     */
-    std::vector<std::string> parse_alpha_composite_bits(
-	    vk::CompositeAlphaFlagsKHR bits);
-    
-    /**
-     * @brief Describe the image usage flags within
-     *  the given bitmask
-     * 
-     * @param bits bitmask of image usage flags
-     * @return std::vector<std::string> description of the bits
-     */
-    std::vector<std::string> parse_image_usage_bits(
-        vk::ImageUsageFlags bits);
 };
 
 /**

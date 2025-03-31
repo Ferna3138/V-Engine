@@ -3,7 +3,7 @@
 
 /**
  * @brief Read a file
- *
+ * 
  * @param filename file to open
  * @return std::vector<char> contents of file
  */

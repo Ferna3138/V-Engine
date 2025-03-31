@@ -13,14 +13,14 @@ vk::Semaphore make_semaphore(vk::Device& logicalDevice,
         VkSemaphoreCreateFlags    flags;
     } VkSemaphoreCreateInfo; */
     vk::SemaphoreCreateInfo semaphoreInfo;
-
+    
     vk::Semaphore semaphore = logicalDevice.createSemaphore(semaphoreInfo).value;
     VkSemaphore handle = semaphore;
 
     deviceDeletionQueue.push_back([handle, logger](vk::Device device) {
         vkDestroySemaphore(device, handle, nullptr);
         logger->print("Destroyed semaphere");
-        });
+    });
 
     return semaphore;
 }
@@ -45,7 +45,7 @@ vk::Fence make_fence(vk::Device& logicalDevice,
     deviceDeletionQueue.push_back([handle, logger](vk::Device device) {
         vkDestroyFence(device, handle, nullptr);
         logger->print("Destroyed fence");
-        });
+    });
 
     return fence;
 }

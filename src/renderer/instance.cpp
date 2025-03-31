@@ -148,7 +148,7 @@ vk::Instance make_instance(const char* applicationName, std::deque<std::function
 		enabledExtensionCount, ppEnabledExtensionNames
 	);
 
-	vk::ResultValue<vk::Instance> instanceAttempt = vk::createInstance(createInfo);
+	vk::ResultValue<vk::Instance> instanceAttempt= vk::createInstance(createInfo);
 	if (instanceAttempt.result != vk::Result::eSuccess) {
 		logger->print("Failed to create Instance!");
 		return nullptr;
@@ -160,7 +160,7 @@ vk::Instance make_instance(const char* applicationName, std::deque<std::function
 		instance.destroy();
 		logger->print("Deleted Instance!");
 		});
-
+	
 	free(ppEnabledExtensionNames);
 	if (ppEnabledLayerNames) {
 		free(ppEnabledLayerNames);

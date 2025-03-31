@@ -10,6 +10,7 @@ void spawn_render_thread(GLFWwindow* window, std::atomic<bool>* done) {
 
     while (!*done) {
         engine->draw();
+        engine->update_timing();
     }
 
     delete engine;
@@ -20,7 +21,7 @@ int main() {
     logger->set_mode(true);
 
     int width = 800, height = 600;
-    GLFWwindow* window = build_window(width, height, "V-Engine");
+    GLFWwindow* window = build_window(width, height, "ID Tech 12");
 
     std::atomic<bool> done = false;
     std::thread render_thread(spawn_render_thread, window, &done);

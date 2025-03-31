@@ -25,4 +25,3 @@ bool supported_by_instance(const char** extensionNames, int extensionCount, cons
 * @return the instance created.
 */
 vk::Instance make_instance(const char* applicationName, std::deque<std::function<void(vk::Instance)>>& deletionQueue);
-

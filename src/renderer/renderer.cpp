@@ -2,6 +2,8 @@
 #include "device.h"
 #include "shader.h"
 #include "command.h"
+#include "synchronisation.h"
+#include <sstream>
 
 Engine::Engine(GLFWwindow* window) :
 	window(window) {
@@ -38,15 +40,6 @@ Engine::Engine(GLFWwindow* window) :
 		logicalDevice, physicalDevice, surface, width, height,
 		deviceDeletionQueue);
 
-	std::vector<vk::Image> images =
-		logicalDevice.getSwapchainImagesKHR(swapchain.chain).value;
-
-	for (uint32_t i = 0; i < images.size(); ++i) {
-		frames.push_back(
-			Frame(images[i], logicalDevice,
-				swapchain.format.format, deviceDeletionQueue));
-	}
-
 	shaders = make_shader_objects(logicalDevice,
 		"shader", dldi,
 		deviceDeletionQueue);
@@ -54,14 +47,10 @@ Engine::Engine(GLFWwindow* window) :
 	commandPool = make_command_pool(logicalDevice, graphicsQueueFamilyIndex,
 		deviceDeletionQueue);
 
-	for (uint32_t i = 0; i < images.size(); ++i) {
-		frames[i].set_command_buffer(
-			allocate_command_buffer(logicalDevice, commandPool), shaders, swapchain.extent, dldi);
+	for (uint32_t i = 0; i < 2; ++i) {
+		vk::CommandBuffer commandBuffer = allocate_command_buffer(logicalDevice, commandPool);
+		frames.push_back(Frame(logicalDevice, swapchain, commandBuffer, shaders, dldi, deviceDeletionQueue));
 	}
-
-	imageAquiredSemaphore = make_semaphore(logicalDevice, deviceDeletionQueue);
-	renderFinishedSemaphore = make_semaphore(logicalDevice, deviceDeletionQueue);
-	renderFinishedFence = make_fence(logicalDevice, deviceDeletionQueue);
 
 	currentTime = glfwGetTime();
 	lastTime = currentTime;
@@ -70,40 +59,44 @@ Engine::Engine(GLFWwindow* window) :
 
 void Engine::draw() {
 
+	Frame& frame = frames[frameIndex];
+
 	//Wait for a possible render operation, then reset it so
 	// that it can be signalled by this frame's render
-	logicalDevice.waitForFences(renderFinishedFence, false, UINT64_MAX);
-	logicalDevice.resetFences(renderFinishedFence);
+	logicalDevice.waitForFences(frame.renderFinishedFence, false, UINT64_MAX);
+	logicalDevice.resetFences(frame.renderFinishedFence);
 
 	//Send an asynchronous fetch request for an image index on the swapchain,
 	// the imageAquiredSemaphore will be signalled upon completion
 	uint32_t imageIndex = logicalDevice.acquireNextImageKHR(
-		swapchain.chain, UINT64_MAX, imageAquiredSemaphore, nullptr).value;
+		swapchain.chain, UINT64_MAX, frame.imageAquiredSemaphore, nullptr).value;
 
 	//Graphics operations! Wait upon image aquisition, and signal 
 	// the renderFinishedSemaphore upon completion
+	frame.record_command_buffer(imageIndex);
 	vk::SubmitInfo submitInfo = {};
 	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &frames[imageIndex].commandBuffer;
+	submitInfo.pCommandBuffers = &frame.commandBuffer;
 	submitInfo.waitSemaphoreCount = 1;
-	submitInfo.pWaitSemaphores = &imageAquiredSemaphore;
+	submitInfo.pWaitSemaphores = &frame.imageAquiredSemaphore;
 	submitInfo.signalSemaphoreCount = 1;
-	submitInfo.pSignalSemaphores = &renderFinishedSemaphore;
+	submitInfo.pSignalSemaphores = &frame.renderFinishedSemaphore;
 	vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 	submitInfo.pWaitDstStageMask = &waitStage;
-	graphicsQueue.submit(submitInfo, renderFinishedFence);
+	graphicsQueue.submit(submitInfo, frame.renderFinishedFence);
 
 	//Queue the swapchain image up for presentation, 
-	// wait on the previous render operation, and
-	// signal the fence upon completion
+	// wait on the previous render operation
 	vk::PresentInfoKHR presentInfo = {};
 	presentInfo.swapchainCount = 1;
 	presentInfo.pSwapchains = &swapchain.chain;
 	presentInfo.pImageIndices = &imageIndex;
 	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pWaitSemaphores = &renderFinishedSemaphore;
+	presentInfo.pWaitSemaphores = &frame.renderFinishedSemaphore;
 
 	graphicsQueue.presentKHR(presentInfo);
+
+	frameIndex = frameIndex ^ 1;
 }
 
 void Engine::update_timing() {

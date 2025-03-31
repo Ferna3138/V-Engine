@@ -7,12 +7,12 @@
 
 /**
 * @brief Make a command pool!
-*
+* 
 * @param logicalDevice the vulkan device
 * @param queueFamilyIndex the index of the Queue Family on which
 *	command buffers from this pool will be submitted.
 * @param deletionQueue deletion queue
-*
+* 
 * @returns the new command pool
 */
 vk::CommandPool make_command_pool(vk::Device logicalDevice, uint32_t queueFamilyIndex,
@@ -20,10 +20,10 @@ vk::CommandPool make_command_pool(vk::Device logicalDevice, uint32_t queueFamily
 
 /**
 * @brief allocate a command buffer.
-*
+* 
 * @param logicalDevice the vulkan device
 * @param commandPool the command pool to allocate from
-*
+* 
 * @returns the allocated command buffer
 */
 vk::CommandBuffer allocate_command_buffer(vk::Device logicalDevice, vk::CommandPool commandPool);

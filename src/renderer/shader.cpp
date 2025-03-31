@@ -36,7 +36,7 @@ struct CompilationInfo {
 
 /**
 * @brief preprocess GLSL shader source code
-*
+* 
 */
 void preprocess_shader(CompilationInfo& info) {
 
@@ -65,8 +65,8 @@ void preprocess_shader(CompilationInfo& info) {
 
 /**
 * @brief Compile glsl source code to SPIR - V assembly.
-*
-*/
+* 
+*/ 
 void compile_file_to_assembly(CompilationInfo& info) {
 
     //setup
@@ -94,7 +94,7 @@ void compile_file_to_assembly(CompilationInfo& info) {
 
 /**
 * @brief Compiles SPIR - V assembly to a SPIR-V binary
-*
+* 
 * @return the SPIR-V binary code as a buffer of 32 bit words
 *
 */
@@ -127,7 +127,7 @@ std::vector<uint32_t> compile_file(CompilationInfo& info) {
     return output;
 }
 
-std::vector<vk::ShaderEXT> make_shader_objects(vk::Device logicalDevice,
+std::vector<vk::ShaderEXT> make_shader_objects(vk::Device logicalDevice, 
     const char* name, vk::DispatchLoaderDynamic& dl,
     std::deque<std::function<void(vk::Device)>>& deviceDeletionQueue) {
 
@@ -216,18 +216,18 @@ std::vector<vk::ShaderEXT> make_shader_objects(vk::Device logicalDevice,
 
     auto result = logicalDevice.createShadersEXT(shaderInfo, nullptr, dl);
     std::vector<vk::ShaderEXT> shaders;
-
+    
     if (result.result == vk::Result::eSuccess) {
         logger->print("Successfully made shaders");
         shaders = result.value;
         VkShaderEXT vertexShader = shaders[0];
         deviceDeletionQueue.push_back([vertexShader, dl](vk::Device device) {
             device.destroyShaderEXT(vertexShader, nullptr, dl);
-            });
+        });
         VkShaderEXT fragmentShader = shaders[1];
         deviceDeletionQueue.push_back([fragmentShader, dl](vk::Device device) {
             device.destroyShaderEXT(fragmentShader, nullptr, dl);
-            });
+        });
     }
     else {
         logger->print("Shader creation failed");

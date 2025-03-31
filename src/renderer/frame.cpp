@@ -1,36 +1,36 @@
 #include "frame.h"
 #include "image.h"
+#include "synchronisation.h"
 
-Frame::Frame(vk::Image image, vk::Device logicalDevice,
-	vk::Format swapchainFormat,
-	std::deque<std::function<void(vk::Device)>>& deletionQueue) : image(image) {
+Frame::Frame(vk::Device& logicalDevice,
+	Swapchain& swapchain,
+	vk::CommandBuffer commandBuffer,
+	std::vector<vk::ShaderEXT>& shaders,
+	vk::DispatchLoaderDynamic& dl,
+	std::deque<std::function<void(vk::Device)>>& deviceDeletionQueue): swapchain(swapchain), shaders(shaders), dl(dl) {
+    
+	this->commandBuffer = commandBuffer;
 
-	imageView = create_image_view(
-		logicalDevice, image, swapchainFormat);
-	VkImageView imageViewHandle = imageView;
-	deletionQueue.push_back([imageViewHandle](vk::Device device) {
-		vkDestroyImageView(device, imageViewHandle, nullptr);
-		});
+	imageAquiredSemaphore = make_semaphore(logicalDevice, deviceDeletionQueue);
+	renderFinishedSemaphore = make_semaphore(logicalDevice, deviceDeletionQueue);
+	renderFinishedFence = make_fence(logicalDevice, deviceDeletionQueue);
 }
 
-void Frame::set_command_buffer(vk::CommandBuffer newCommandBuffer,
-	std::vector<vk::ShaderEXT>& shaders, vk::Extent2D frameSize,
-	vk::DispatchLoaderDynamic& dl) {
+void Frame::record_command_buffer(uint32_t imageIndex) {
 
-	commandBuffer = newCommandBuffer;
+	commandBuffer.reset();
 
-	build_color_attachment();
-	build_rendering_info(frameSize);
+	build_color_attachment(imageIndex);
+	build_rendering_info();
 
 	vk::CommandBufferBeginInfo beginInfo = {};
 	commandBuffer.begin(beginInfo);
-	transition_image_layout(commandBuffer, image,
+	transition_image_layout(commandBuffer, swapchain.images[imageIndex],
 		vk::ImageLayout::eUndefined, vk::ImageLayout::eAttachmentOptimal,
 		vk::AccessFlagBits::eNone, vk::AccessFlagBits::eColorAttachmentWrite,
 		vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eColorAttachmentOutput);
 
-	annoying_boilerplate_that_dynamic_rendering_was_meant_to_spare_us(
-		frameSize, dl);
+	annoying_boilerplate_that_dynamic_rendering_was_meant_to_spare_us();
 
 	commandBuffer.beginRenderingKHR(renderingInfo, dl);
 
@@ -44,7 +44,7 @@ void Frame::set_command_buffer(vk::CommandBuffer newCommandBuffer,
 
 	commandBuffer.endRenderingKHR(dl);
 
-	transition_image_layout(commandBuffer, image,
+	transition_image_layout(commandBuffer, swapchain.images[imageIndex],
 		vk::ImageLayout::eAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR,
 		vk::AccessFlagBits::eColorAttachmentWrite, vk::AccessFlagBits::eNone,
 		vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eBottomOfPipe);
@@ -52,7 +52,7 @@ void Frame::set_command_buffer(vk::CommandBuffer newCommandBuffer,
 	commandBuffer.end();
 }
 
-void Frame::build_rendering_info(vk::Extent2D frameSize) {
+void Frame::build_rendering_info() {
 
 	/*
 	* // Provided by VK_VERSION_1_3
@@ -71,7 +71,7 @@ void Frame::build_rendering_info(vk::Extent2D frameSize) {
 	*/
 
 	renderingInfo.setFlags(vk::RenderingFlagsKHR());
-	renderingInfo.setRenderArea(vk::Rect2D({ 0,0 }, frameSize));
+	renderingInfo.setRenderArea(vk::Rect2D({ 0,0 }, swapchain.extent));
 	renderingInfo.setLayerCount(1);
 	//bitmask indicating the layers which will be rendered to
 	renderingInfo.setViewMask(0);
@@ -79,7 +79,7 @@ void Frame::build_rendering_info(vk::Extent2D frameSize) {
 	renderingInfo.setColorAttachments(colorAttachment);
 }
 
-void Frame::build_color_attachment() {
+void Frame::build_color_attachment(uint32_t imageIndex) {
 	/*
 	// Provided by VK_VERSION_1_3
 	typedef struct VkRenderingAttachmentInfo {
@@ -96,21 +96,22 @@ void Frame::build_color_attachment() {
 	} VkRenderingAttachmentInfo;
 	*/
 
-	colorAttachment.setImageView(imageView);
+	colorAttachment.setImageView(swapchain.imageViews[imageIndex]);
 	colorAttachment.setImageLayout(vk::ImageLayout::eAttachmentOptimal);
 	colorAttachment.setLoadOp(vk::AttachmentLoadOp::eClear);
 	colorAttachment.setStoreOp(vk::AttachmentStoreOp::eStore);
 	colorAttachment.setClearValue(vk::ClearValue({ 0.5f, 0.0f, 0.25f, 1.0f }));
 }
 
-void Frame::annoying_boilerplate_that_dynamic_rendering_was_meant_to_spare_us(
-	vk::Extent2D frameSize, vk::DispatchLoaderDynamic& dl) {
+void Frame::annoying_boilerplate_that_dynamic_rendering_was_meant_to_spare_us() {
 
-	vk::Viewport viewport =
-		vk::Viewport(0.0f, 0.0f, frameSize.width, frameSize.height, 0.0f, 1.0f);
+	commandBuffer.setVertexInputEXT(0, nullptr, 0, nullptr, dl);
+
+	vk::Viewport viewport = 
+		vk::Viewport(0.0f, 0.0f, swapchain.extent.width, swapchain.extent.height, 0.0f, 1.0f);
 	commandBuffer.setViewportWithCount(viewport, dl);
 
-	vk::Rect2D scissor = vk::Rect2D({ 0,0 }, frameSize);
+	vk::Rect2D scissor = vk::Rect2D({ 0,0 }, swapchain.extent);
 	commandBuffer.setScissorWithCount(scissor, dl);
 
 	commandBuffer.setRasterizerDiscardEnable(0, dl);
@@ -133,8 +134,7 @@ void Frame::annoying_boilerplate_that_dynamic_rendering_was_meant_to_spare_us(
 	equation.dstColorBlendFactor = vk::BlendFactor::eZero;
 	equation.srcColorBlendFactor = vk::BlendFactor::eOne;
 	commandBuffer.setColorBlendEquationEXT(0, equation, dl);
-	vk::ColorComponentFlags colorWriteMask = 
-		  vk::ColorComponentFlagBits::eR
+	vk::ColorComponentFlags colorWriteMask = vk::ColorComponentFlagBits::eR
 		| vk::ColorComponentFlagBits::eG
 		| vk::ColorComponentFlagBits::eB
 		| vk::ColorComponentFlagBits::eA;
