@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.hpp>
 #include <deque>
 #include <functional>
+#include <GLFW/glfw3.h>
 
 /**
  * @brief Handy bundle of info describing
@@ -35,7 +36,13 @@ struct SurfaceDetails {
  */
 class Swapchain {
 public:
+    void rebuild(
+        vk::Device logicalDevice,
+        vk::PhysicalDevice physicalDevice,
+        vk::SurfaceKHR surface,
+        GLFWwindow* window);
 
+    void destroy(vk::Device logicalDevice);
     /**
      * @brief Construct a new Swapchain object
      * 
@@ -50,8 +57,7 @@ public:
         vk::Device logicalDevice, 
         vk::PhysicalDevice physicalDevice, 
         vk::SurfaceKHR surface, 
-        uint32_t width, uint32_t height,
-        std::deque<std::function<void(vk::Device)>>& deviceDeletionQueue);
+        uint32_t width, uint32_t height);
 
     /**
      * @brief the number of images
@@ -87,7 +93,17 @@ public:
     */
     std::vector<vk::ImageView> imageViews;
 
+    /**
+    * @brief the image views
+    */
+    bool outdated = false;
+
 private:
+    /**
+    * @brief Stores destructors!
+    */
+    std::deque<std::function<void(vk::Device)>> deletionQueue;
+
 
     /**
      * @brief Check the properties of a surface

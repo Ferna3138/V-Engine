@@ -58,9 +58,11 @@ void preprocess_shader(CompilationInfo& info) {
     memcpy(info.source.data(), src, newSize);
 
     //Log output for fun
+    /*
     logger->print("---- Preprocessed GLSL source code ----");
     std::string output = { info.source.data(), info.source.data() + info.source.size() };
     logger->print(output);
+    */
 }
 
 /**

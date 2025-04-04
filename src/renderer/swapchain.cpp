@@ -2,10 +2,39 @@
 #include "../logging/logger.h"
 #include "image.h"
 
+void Swapchain::rebuild(
+    vk::Device logicalDevice,
+    vk::PhysicalDevice physicalDevice,
+    vk::SurfaceKHR surface,
+    GLFWwindow* window) {
+
+    Logger* logger = Logger::get_logger();
+    logger->print("Recreating the swapchain");
+    logger->set_mode(false);
+
+    logicalDevice.waitIdle();
+
+    destroy(logicalDevice);
+
+    int width, height;
+    glfwGetFramebufferSize(window, &width, &height);
+    build(logicalDevice, physicalDevice, surface, width, height);
+
+    logger->set_mode(true);
+}
+
+void Swapchain::destroy(vk::Device logicalDevice) {
+    while (deletionQueue.size() > 0) {
+        deletionQueue.back()(logicalDevice);
+        deletionQueue.pop_back();
+    }
+    images.clear();
+    imageViews.clear();
+}
+
 void Swapchain::build(
     vk::Device logicalDevice, vk::PhysicalDevice physicalDevice, 
-    vk::SurfaceKHR surface, uint32_t width, uint32_t height,
-    std::deque<std::function<void(vk::Device)>>& deviceDeletionQueue) {
+    vk::SurfaceKHR surface, uint32_t width, uint32_t height) {
 
     Logger* logger = Logger::get_logger();
 
@@ -60,7 +89,7 @@ void Swapchain::build(
     if (result.result == vk::Result::eSuccess) {
         chain = result.value;
 
-        deviceDeletionQueue.push_back([this, logger](vk::Device device){
+        deletionQueue.push_back([this, logger](vk::Device device){
             logger->print("Destroyed swapchain");
             device.destroySwapchainKHR(chain);
         });
@@ -75,10 +104,12 @@ void Swapchain::build(
         vk::ImageView imageView = create_image_view(logicalDevice, images[i], format.format);
         imageViews.push_back(imageView);
         VkImageView imageViewHandle = imageView;
-        deviceDeletionQueue.push_back([imageViewHandle](vk::Device device) {
+        deletionQueue.push_back([imageViewHandle](vk::Device device) {
             vkDestroyImageView(device, imageViewHandle, nullptr);
         });
     }
+
+    outdated = false;
 }
 
 SurfaceDetails Swapchain::query_surface_support(

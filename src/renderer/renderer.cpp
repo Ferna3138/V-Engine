@@ -37,8 +37,7 @@ Engine::Engine(GLFWwindow* window) :
 	int width, height;
 	glfwGetWindowSize(window, &width, &height);
 	swapchain.build(
-		logicalDevice, physicalDevice, surface, width, height,
-		deviceDeletionQueue);
+		logicalDevice, physicalDevice, surface, width, height);
 
 	shaders = make_shader_objects(logicalDevice,
 		"shader", dldi,
@@ -59,20 +58,34 @@ Engine::Engine(GLFWwindow* window) :
 
 void Engine::draw() {
 
+	int width, height;
+	glfwGetFramebufferSize(window, &width, &height);
+
+	if (width == 0 && height == 0) {
+		swapchain.outdated = true;
+		return;
+	}
+
+	if (swapchain.outdated) {
+		swapchain.rebuild(logicalDevice, physicalDevice, surface, window);
+	}
+
 	Frame& frame = frames[frameIndex];
 
-	//Wait for a possible render operation, then reset it so
-	// that it can be signalled by this frame's render
 	logicalDevice.waitForFences(frame.renderFinishedFence, false, UINT64_MAX);
+
+	auto acquisition = logicalDevice.acquireNextImageKHR(
+		swapchain.chain, UINT64_MAX, frame.imageAquiredSemaphore, nullptr);
+	vk::Result result = acquisition.result;
+	uint32_t imageIndex = acquisition.value;
+
+	if (result == vk::Result::eErrorOutOfDateKHR) {
+		swapchain.outdated = true;
+		return;
+	}
+
 	logicalDevice.resetFences(frame.renderFinishedFence);
 
-	//Send an asynchronous fetch request for an image index on the swapchain,
-	// the imageAquiredSemaphore will be signalled upon completion
-	uint32_t imageIndex = logicalDevice.acquireNextImageKHR(
-		swapchain.chain, UINT64_MAX, frame.imageAquiredSemaphore, nullptr).value;
-
-	//Graphics operations! Wait upon image aquisition, and signal 
-	// the renderFinishedSemaphore upon completion
 	frame.record_command_buffer(imageIndex);
 	vk::SubmitInfo submitInfo = {};
 	submitInfo.commandBufferCount = 1;
@@ -85,16 +98,18 @@ void Engine::draw() {
 	submitInfo.pWaitDstStageMask = &waitStage;
 	graphicsQueue.submit(submitInfo, frame.renderFinishedFence);
 
-	//Queue the swapchain image up for presentation, 
-	// wait on the previous render operation
 	vk::PresentInfoKHR presentInfo = {};
 	presentInfo.swapchainCount = 1;
 	presentInfo.pSwapchains = &swapchain.chain;
 	presentInfo.pImageIndices = &imageIndex;
 	presentInfo.waitSemaphoreCount = 1;
 	presentInfo.pWaitSemaphores = &frame.renderFinishedSemaphore;
+	result = graphicsQueue.presentKHR(presentInfo);
 
-	graphicsQueue.presentKHR(presentInfo);
+	if (result == vk::Result::eErrorOutOfDateKHR) {
+		swapchain.outdated = true;
+		return;
+	}
 
 	frameIndex = frameIndex ^ 1;
 }
@@ -121,6 +136,8 @@ Engine::~Engine() {
 	graphicsQueue.waitIdle();
 
 	logger->print("Goodbye see you!");
+
+	swapchain.destroy(logicalDevice);
 
 	while (deviceDeletionQueue.size() > 0) {
 		deviceDeletionQueue.back()(logicalDevice);
