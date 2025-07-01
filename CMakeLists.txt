@@ -5,7 +5,7 @@ cmake_policy(SET CMP0072 NEW)
 set(CMAKE_CXX_STANDARD 20)
 
 find_package(Vulkan REQUIRED)
-
+find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
 
 
 # Set GLFW paths based on platform
@@ -61,11 +61,18 @@ target_include_directories(V-Engine
     dependencies 
 )
 
-target_link_libraries(V-Engine
-    ${GLFW_LIB}
-    ${SHADERC_LIB}
-    Vulkan::Vulkan
-)
+if(UNIX AND NOT APPLE)
+    target_link_libraries(V-Engine
+        glfw
+        Vulkan::Vulkan
+        Vulkan::shaderc_combined
+    )
+else()
+    target_link_libraries(V-Engine
+        ${GLFW_LIB}
+        ${SHADERC_LIB}
+    )
+endif()
 
 
 # Organize source files into filters for Visual Studio
