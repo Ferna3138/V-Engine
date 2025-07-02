@@ -5,8 +5,6 @@ cmake_policy(SET CMP0072 NEW)
 set(CMAKE_CXX_STANDARD 20)
 
 find_package(Vulkan REQUIRED)
-find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
-
 
 # Set GLFW paths based on platform
 if(APPLE)
@@ -19,16 +17,20 @@ endif()
 
 add_executable(V-Engine
     shaders/compile.bat
-    shaders/shader.frag
-    shaders/shader.vert
+    shaders/fragment.frag
+    shaders/vertex.vert
 
     src/backend/file.cpp
     src/backend/file.h
     src/backend/glfw_backend.cpp
     src/backend/glfw_backend.h
+    src/backend/vma_usage.cpp
     
     src/controller/app.cpp
     src/controller/app.h
+
+    src/factories/mesh_factory.cpp
+    src/factories/mesh_factory.h
 
     src/logging/logger.cpp
     src/logging/logger.h
@@ -67,6 +69,18 @@ if(UNIX AND NOT APPLE)
         Vulkan::Vulkan
         Vulkan::shaderc_combined
     )
+
+
+    add_custom_target(CompileShaders ALL
+        COMMAND ${CMAKE_COMMAND} -E echo "Compiling shaders..."
+        COMMAND bash ${CMAKE_SOURCE_DIR}/shaders/compile.sh
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/shaders
+        COMMENT "Running compile.sh to compile shaders"
+    )
+
+    add_dependencies(V-Engine CompileShaders)
+
+
 else()
     target_link_libraries(V-Engine
         ${GLFW_LIB}
@@ -75,19 +89,24 @@ else()
 endif()
 
 
+
 # Organize source files into filters for Visual Studio
 foreach(source IN ITEMS 
     shaders/compile.bat
-    shaders/shader.frag
-    shaders/shader.vert
+    shaders/fragment.frag
+    shaders/vertex.vert
 
     src/backend/file.cpp
     src/backend/file.h
     src/backend/glfw_backend.cpp
     src/backend/glfw_backend.h
+    src/backend/vma_usage.cpp
 
     src/controller/app.cpp
     src/controller/app.h
+
+    src/factories/mesh_factory.cpp
+    src/factories/mesh_factory.h
 
     src/logging/logger.cpp
     src/logging/logger.h

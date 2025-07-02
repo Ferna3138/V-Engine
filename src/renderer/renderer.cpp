@@ -34,21 +34,32 @@ Engine::Engine(GLFWwindow* window) :
 		physicalDevice, surface, vk::QueueFlagBits::eGraphics);
 	graphicsQueue = logicalDevice.getQueue(graphicsQueueFamilyIndex, 0);
 
+	VmaAllocatorCreateInfo allocatorInfo = {};
+	allocatorInfo.device = logicalDevice;
+	allocatorInfo.instance = instance;
+	allocatorInfo.physicalDevice = physicalDevice;
+	// allocatorInfo.vulkanApiVersion = vk::makeApiVersion(1, 4, 0, 0);
+	vmaCreateAllocator(&allocatorInfo, &allocator);
+
+
 	int width, height;
 	glfwGetWindowSize(window, &width, &height);
 	swapchain.build(
 		logicalDevice, physicalDevice, surface, width, height);
 
 	shaders = make_shader_objects(logicalDevice,
-		"shader", dldi,
+		"shaders/vertex.spv", "shaders/fragment.spv", dldi,
 		deviceDeletionQueue);
 
 	commandPool = make_command_pool(logicalDevice, graphicsQueueFamilyIndex,
 		deviceDeletionQueue);
 
+
+	triangleMesh = build_triangle(allocator, vmaDeletionQueue);
+
 	for (uint32_t i = 0; i < 2; ++i) {
 		vk::CommandBuffer commandBuffer = allocate_command_buffer(logicalDevice, commandPool);
-		frames.push_back(Frame(logicalDevice, swapchain, commandBuffer, shaders, dldi, deviceDeletionQueue));
+		frames.push_back(Frame(swapchain, logicalDevice, shaders, dldi, commandBuffer, deviceDeletionQueue, &triangleMesh));
 	}
 
 	currentTime = glfwGetTime();
@@ -136,6 +147,13 @@ Engine::~Engine() {
 	graphicsQueue.waitIdle();
 
 	logger->print("Goodbye see you!");
+
+	while (vmaDeletionQueue.size() > 0) {
+		vmaDeletionQueue.back()(allocator);
+		vmaDeletionQueue.pop_back();
+	}
+
+	vmaDestroyAllocator(allocator);
 
 	swapchain.destroy(logicalDevice);
 

@@ -41,13 +41,9 @@ bool is_suitable(const vk::PhysicalDevice& device) {
 	* A device is suitable if it can present to the screen, ie support
 	* the swapchain extension
 	*/
-	uint32_t requestedExtensionCount = 3;
-	const char** ppRequestedExtensions = (const char**)malloc(requestedExtensionCount * sizeof(char*));
-	ppRequestedExtensions[0] = "VK_KHR_swapchain";
-	ppRequestedExtensions[1] = "VK_EXT_shader_object";
-	ppRequestedExtensions[2] = "VK_KHR_dynamic_rendering";
+	const char* ppRequestedExtension = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 
-	if (supports(device, ppRequestedExtensions, requestedExtensionCount)) {
+	if (supports(device, &ppRequestedExtension, 1)) {
 		logger->print("Device can support the requested extensions!");
 	}
 	else {
@@ -69,30 +65,16 @@ vk::PhysicalDevice choose_physical_device(const vk::Instance& instance) {
 		std::vector<vk::PhysicalDevice> instance.enumeratePhysicalDevices( Dispatch const & d = static/default )
 	*/
 	std::vector<vk::PhysicalDevice> availableDevices = instance.enumeratePhysicalDevices().value;
-	vk::PhysicalDevice bestDevice = nullptr;
-	bool foundDiscrete = false;
 
 	for (vk::PhysicalDevice device : availableDevices) {
 
 		logger->log(device);
-
-		vk::PhysicalDeviceProperties properties = device.getProperties();
-
 		if (is_suitable(device)) {
-
-			// Prefer discrete GPU if possible
-			bool discrete = properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
-			if (!foundDiscrete) {
-				bestDevice = device;
-			}
-			else if (discrete) {
-				foundDiscrete = true;
-				bestDevice = device;
-			}
+			return device;
 		}
 	}
 
-	return bestDevice;
+	return nullptr;
 }
 
 uint32_t find_queue_family_index(vk::PhysicalDevice physicalDevice,
@@ -162,11 +144,12 @@ vk::Device create_logical_device(
 	}
 
 	
-	uint32_t enabledExtensionCount = 3;
+	uint32_t enabledExtensionCount = 4;
 	const char** ppEnabledExtensions = (const char**) malloc(enabledExtensionCount * sizeof(char*));
 	ppEnabledExtensions[0] = "VK_KHR_swapchain";
 	ppEnabledExtensions[1] = "VK_EXT_shader_object";
 	ppEnabledExtensions[2] = "VK_KHR_dynamic_rendering";
+	ppEnabledExtensions[3] = "VK_KHR_synchronization2";
 
 	vk::DeviceCreateInfo deviceInfo = vk::DeviceCreateInfo(
 		vk::DeviceCreateFlags(),

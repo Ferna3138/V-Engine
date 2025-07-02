@@ -1,19 +1,22 @@
 #include "frame.h"
 #include "image.h"
 #include "synchronisation.h"
+#include <iostream>
 
-Frame::Frame(vk::Device& logicalDevice,
-	Swapchain& swapchain,
-	vk::CommandBuffer commandBuffer,
+Frame::Frame(Swapchain& swapchain, vk::Device logicalDevice,
 	std::vector<vk::ShaderEXT>& shaders,
 	vk::DispatchLoaderDynamic& dl,
-	std::deque<std::function<void(vk::Device)>>& deviceDeletionQueue): swapchain(swapchain), shaders(shaders), dl(dl) {
-    
+	vk::CommandBuffer commandBuffer,
+	std::deque<std::function<void(vk::Device)>>& deletionQueue,
+	Mesh* trianglemesh): swapchain(swapchain), shaders(shaders), 
+		dl(dl) {
+   
 	this->commandBuffer = commandBuffer;
+	this->triangleMesh = trianglemesh;
 
-	imageAquiredSemaphore = make_semaphore(logicalDevice, deviceDeletionQueue);
-	renderFinishedSemaphore = make_semaphore(logicalDevice, deviceDeletionQueue);
-	renderFinishedFence = make_fence(logicalDevice, deviceDeletionQueue);
+	imageAquiredSemaphore = make_semaphore(logicalDevice, deletionQueue);
+	renderFinishedSemaphore = make_semaphore(logicalDevice, deletionQueue);
+	renderFinishedFence = make_fence(logicalDevice, deletionQueue);
 }
 
 void Frame::record_command_buffer(uint32_t imageIndex) {
@@ -39,6 +42,8 @@ void Frame::record_command_buffer(uint32_t imageIndex) {
 		vk::ShaderStageFlagBits::eFragment
 	};
 	commandBuffer.bindShadersEXT(stages, shaders, dl);
+
+	commandBuffer.bindVertexBuffers(0, 1, &(triangleMesh->buffer), &(triangleMesh->offset));
 
 	commandBuffer.draw(3, 1, 0, 0);
 
@@ -105,7 +110,9 @@ void Frame::build_color_attachment(uint32_t imageIndex) {
 
 void Frame::annoying_boilerplate_that_dynamic_rendering_was_meant_to_spare_us() {
 
-	commandBuffer.setVertexInputEXT(0, nullptr, 0, nullptr, dl);
+	vk::VertexInputBindingDescription2EXT bindingDescription = Vertex::getBindingDescription();
+	std::vector<vk::VertexInputAttributeDescription2EXT> attributes = Vertex::getAttributeDescriptions();
+	commandBuffer.setVertexInputEXT(1, &bindingDescription, 2, attributes.data(), dl);
 
 	vk::Viewport viewport = 
 		vk::Viewport(0.0f, 0.0f, swapchain.extent.width, swapchain.extent.height, 0.0f, 1.0f);

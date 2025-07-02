@@ -8,6 +8,8 @@
 #include "frame.h"
 #include "swapchain.h"
 #include <vector>
+#include <vma/vk_mem_alloc.h>
+#include "../factories/mesh_factory.h"
 
 /**
  * @brief Vroom vroom.
@@ -56,6 +58,7 @@ private:
     */
     std::deque<std::function<void(vk::Instance)>> instanceDeletionQueue;
     std::deque<std::function<void(vk::Device)>> deviceDeletionQueue;
+    std::deque<std::function<void(VmaAllocator)>> vmaDeletionQueue;
 
     /**
     * @brief the main instance
@@ -83,6 +86,9 @@ private:
      * 
      */
     vk::Device logicalDevice;
+
+
+    VmaAllocator allocator;
 
     /**
      * @brief Queues for work submission
@@ -124,4 +130,6 @@ private:
     double lastTime, currentTime;
     int numFrames;
     float frameTime = 0.0f;
+
+    Mesh triangleMesh;
 };

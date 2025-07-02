@@ -2,9 +2,10 @@
 #define VULKAN_HPP_NO_EXCEPTIONS
 #include <vulkan/vulkan.hpp>
 #include "image.h"
-#include "swapchain.h"
 #include <deque>
 #include <functional>
+#include "swapchain.h"
+#include "../factories/mesh_factory.h"
 
 /**
  * @brief Holds all the state used in one
@@ -16,18 +17,18 @@ public:
 
     /**
      * @brief Construct a new Frame object
-     *
-     * @param swapchain swapchain to render to
-     * @param commandBuffer for recording drawing commands and resource transitions
-     * @param shaders the shader objects to use in rendering
-     * @param dl dynamic loader for all those weird modern features we're using
+     * 
+     * @param image swapchain image to render to
+     * @param logicalDevice vulkan device
+     * @param deletionQueue deletionQueue
+     * @param swapchainFormat swapchain image format
      */
-    Frame(vk::Device& logicalDevice,
-        Swapchain& swapchain,
-        vk::CommandBuffer commandBuffer,
+    Frame(Swapchain& swapchain, vk::Device logicalDevice, 
         std::vector<vk::ShaderEXT>& shaders,
         vk::DispatchLoaderDynamic& dl,
-        std::deque<std::function<void(vk::Device)>>& deviceDeletionQueue);
+        vk::CommandBuffer commandBuffer,
+        std::deque<std::function<void(vk::Device)>>& deletionQueue,
+        Mesh* triangleMesh);
 
     /**
      * @brief swapchain to render to
@@ -96,5 +97,7 @@ private:
     vk::RenderingInfoKHR renderingInfo = {};
 
     vk::RenderingAttachmentInfoKHR colorAttachment = {};
+
+    Mesh* triangleMesh;
 
 };
