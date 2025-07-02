@@ -53,9 +53,11 @@ Engine::Engine(GLFWwindow* window) :
 
 	commandPool = make_command_pool(logicalDevice, graphicsQueueFamilyIndex,
 		deviceDeletionQueue);
+	
+	mainCommandBuffer = allocate_command_buffer(logicalDevice, commandPool);
 
 
-	triangleMesh = build_triangle(allocator, vmaDeletionQueue);
+	triangleMesh = build_triangle(allocator, vmaDeletionQueue, mainCommandBuffer, graphicsQueue);
 
 	for (uint32_t i = 0; i < 2; ++i) {
 		vk::CommandBuffer commandBuffer = allocate_command_buffer(logicalDevice, commandPool);

@@ -6,6 +6,7 @@
 #include <vma/vk_mem_alloc.h>
 #include <deque>
 #include <functional>
+#include "../renderer/buffer.h"
 
 struct Vertex {
 	glm::vec2 pos;
@@ -51,4 +52,4 @@ struct Mesh {
 * 
 * @param vmaDeletionQueue deletion queue to hold destructor.
 */
-Mesh build_triangle(VmaAllocator& allocator, std::deque<std::function<void(VmaAllocator)>>& vmaDeletionQueue);
+Mesh build_triangle(VmaAllocator& allocator, std::deque<std::function<void(VmaAllocator)>>& vmaDeletionQueue, vk::CommandBuffer commandBuffer, vk::Queue queue);

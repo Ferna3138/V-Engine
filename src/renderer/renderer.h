@@ -125,6 +125,8 @@ private:
     */
     vk::CommandPool commandPool;
 
+    vk::CommandBuffer mainCommandBuffer;
+
     uint32_t frameIndex = 0;
 
     double lastTime, currentTime;

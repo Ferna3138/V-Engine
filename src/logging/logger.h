@@ -3,6 +3,7 @@
 #include <deque>
 #include <functional>
 #include <vulkan/vulkan.hpp>
+#include <vma/vk_mem_alloc.h>
 /**
     Handles messages to print.
 */
@@ -130,6 +131,8 @@ public:
      * @param modes present modes to report
      */
     void log(const std::vector<vk::PresentModeKHR>& modes);
+
+    void log(const VmaAllocationInfo& info);
 private:
     /**
      * @brief whether the logger is enabled or not.

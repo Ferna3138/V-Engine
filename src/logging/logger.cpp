@@ -303,3 +303,16 @@ void Logger::log(const std::vector<vk::PresentModeKHR>& modes) {
 		std::cout << '\t' << vk::to_string(presentMode) << std::endl;
 	}
 }
+
+
+void Logger::log(const VmaAllocationInfo& info) {
+	if(!enabled){
+		return;
+	}
+
+	std::cout << "----" << info.pName << "----" << std::endl;
+	std::cout << "\tMemory Type: " << info.memoryType << std::endl;
+	std::cout << "\tMemory Object: " << info.deviceMemory << std::endl;
+	std::cout << "\tOffset: " << info.offset << std::endl;
+	std::cout << "\tSize: " << info.size << std::endl;
+}

@@ -35,6 +35,8 @@ add_executable(V-Engine
     src/logging/logger.cpp
     src/logging/logger.h
 
+    src/renderer/buffer.cpp
+    src/renderer/buffer.h
     src/renderer/command.cpp
     src/renderer/command.h
     src/renderer/device.cpp
@@ -67,7 +69,6 @@ if(UNIX AND NOT APPLE)
     target_link_libraries(V-Engine
         glfw
         Vulkan::Vulkan
-        Vulkan::shaderc_combined
     )
 
 
@@ -111,6 +112,8 @@ foreach(source IN ITEMS
     src/logging/logger.cpp
     src/logging/logger.h
 
+    src/renderer/buffer.cpp
+    src/renderer/buffer.h
     src/renderer/command.cpp
     src/renderer/command.h
     src/renderer/device.cpp
