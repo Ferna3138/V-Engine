@@ -16,7 +16,7 @@ void KeyboardMovementController::mouseMove(GLFWwindow *window, float dt, GameObj
 
     if (stateLeft == GLFW_PRESS) {
         // Rotate camera
-        gameObject.transform.rotation.y -= static_cast<float>(-dx) * 0.002f;  // Yaw
+        gameObject.transform.rotation.y += static_cast<float>(-dx) * 0.002f;  // Yaw
         gameObject.transform.rotation.x -= static_cast<float>(-dy) * 0.002f;  // Pitch
         gameObject.transform.rotation.x = glm::clamp(gameObject.transform.rotation.x, -1.5f, 1.5f);
     }

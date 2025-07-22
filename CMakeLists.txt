@@ -13,12 +13,17 @@ elseif(WIN32)
     set(GLFW_LIB ${CMAKE_SOURCE_DIR}/Dependencies/lib-vc2022/glfw3.lib)
 endif()
 
+# Set TinyOBJ path
+set(TINYOBJ_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/tinyobjloader)
+
+
 # Define source files
 set(SOURCES
     Src/Shaders/compile.bat
     Src/Shaders/simple_shader.frag
     Src/Shaders/simple_shader.vert
     
+    Src/Components/Game_Object.cpp
     Src/Components/Game_Object.hpp
     Src/Components/Model.cpp
     Src/Components/Model.hpp
@@ -44,7 +49,6 @@ set(SOURCES
     Src/main.cpp
     Src/Simple_Render_System.cpp
     Src/Simple_Render_System.hpp
-    
 )
 
 add_executable(V-Engine ${SOURCES})
@@ -52,7 +56,8 @@ add_executable(V-Engine ${SOURCES})
 # Include directories
 target_include_directories(V-Engine 
     PRIVATE
-    Dependencies)
+    Dependencies
+    ${TINYOBJ_PATH})
 
 
 if(WIN32)
