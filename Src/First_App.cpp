@@ -1,7 +1,7 @@
 #include "First_App.hpp"
 
-#include "Camera.hpp"
-#include "Keyboard_Movement_Controller.hpp"
+#include "Systems/Camera.hpp"
+#include "Systems/Keyboard_Movement_Controller.hpp"
 #include "Simple_Render_System.hpp"
 
 #define GLM_FORCE_RADIANS

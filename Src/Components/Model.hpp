@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Device.hpp"
+#include "../Renderer/Device.hpp"
 
 // Libs
 #define GLM_FORCE_RADIANS

@@ -1,5 +1,5 @@
 #include "Pipeline.hpp"
-#include "Model.hpp"
+#include "../Components/Model.hpp"
 
 #include <fstream>
 #include <stdexcept>

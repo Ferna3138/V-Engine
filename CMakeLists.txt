@@ -19,28 +19,32 @@ set(SOURCES
     Src/Shaders/simple_shader.frag
     Src/Shaders/simple_shader.vert
     
-    Src/Camera.cpp
-    Src/Camera.hpp
-    Src/Device.cpp
-    Src/Device.hpp
+    Src/Components/Game_Object.hpp
+    Src/Components/Model.cpp
+    Src/Components/Model.hpp
+
+    Src/Renderer/Device.cpp
+    Src/Renderer/Device.hpp
+    Src/Renderer/Pipeline.cpp
+    Src/Renderer/Pipeline.hpp
+    Src/Renderer/Renderer.cpp
+    Src/Renderer/Renderer.hpp
+    Src/Renderer/Swap_Chain.cpp
+    Src/Renderer/Swap_Chain.hpp
+    Src/Renderer/Window.cpp
+    Src/Renderer/Window.hpp
+    
+    Src/Systems/Camera.cpp
+    Src/Systems/Camera.hpp
+    Src/Systems/Keyboard_Movement_Controller.cpp
+    Src/Systems/Keyboard_Movement_Controller.hpp
+
     Src/First_App.cpp
     Src/First_App.hpp
-    Src/Game_Object.hpp
-    Src/Keyboard_Movement_Controller.cpp
-    Src/Keyboard_Movement_Controller.hpp
     Src/main.cpp
-    Src/Model.cpp
-    Src/Model.hpp
-    Src/Pipeline.cpp
-    Src/Pipeline.hpp
-    Src/Renderer.cpp
-    Src/Renderer.hpp
     Src/Simple_Render_System.cpp
     Src/Simple_Render_System.hpp
-    Src/Swap_Chain.cpp
-    Src/Swap_Chain.hpp
-    Src/Window.cpp
-    Src/Window.hpp
+    
 )
 
 add_executable(V-Engine ${SOURCES})
