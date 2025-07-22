@@ -1,0 +1,54 @@
+#pragma once
+#include "Device.hpp"
+#include "Swap_Chain.hpp"
+#include "Window.hpp"
+
+// Std
+#include <cassert>
+#include <memory>
+#include <vector>
+
+class Renderer {
+    public:
+        Renderer(Window& window, Device& device);
+        ~Renderer();
+
+        Renderer(const Renderer &) = delete;
+        Renderer &operator=(const Renderer &) = delete;
+
+        VkRenderPass getSwapChainRenderPass() const { return swapChain->getRenderPass(); }
+        
+
+        float getAspectRatio() const { return swapChain->extentAspectRatio(); }
+
+        bool isFrameInProgress() const { return isFrameStarted; }
+
+        VkCommandBuffer getCurrentCommandBuffer() const {
+            assert(isFrameStarted && "Cannot get command buffer when frame is not in progress");
+            return commandBuffers[currentFrameIndex]; 
+        }
+
+        VkCommandBuffer beginFrame();
+        void endFrame();
+        void beginSwapChainRenderPass(VkCommandBuffer commandBuffer);  
+        void endSwapChainRenderPass(VkCommandBuffer commandBuffer);
+
+        int getFrameIndex() const {
+            assert(isFrameStarted && "Cannot get frame index when frame is not in progress");
+            return currentFrameIndex;
+        }
+
+    private:
+        void createCommandBuffers();
+        void freeCommandBuffers();
+        void recreateSwapChain();
+
+        Window& window;
+        Device& device;
+        std::unique_ptr<SwapChain> swapChain;
+        std::vector<VkCommandBuffer> commandBuffers;
+
+        uint32_t currentImageIndex;
+        int currentFrameIndex = 0;
+        bool isFrameStarted = false;
+};
