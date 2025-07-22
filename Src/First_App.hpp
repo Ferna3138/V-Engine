@@ -25,7 +25,7 @@ class FirstApp {
     private:
         void loadGameObjects();
 
-        Window window{WIDTH, HEIGHT, "Vulkan Tutorial"};
+        Window window{WIDTH, HEIGHT, "V-Engine"};
         Device device{window};
         Renderer renderer{window, device};
         std::vector<GameObject> gameObjects;

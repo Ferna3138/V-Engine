@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28.0)
-project(VK-Engine VERSION 1.0.0)
+project(V-Engine VERSION 1.0.0)
 cmake_policy(SET CMP0072 NEW)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -43,16 +43,16 @@ set(SOURCES
     Src/Window.hpp
 )
 
-add_executable(VK-Engine ${SOURCES})
+add_executable(V-Engine ${SOURCES})
 
 # Include directories
-target_include_directories(VK-Engine 
+target_include_directories(V-Engine 
     PRIVATE
     Dependencies)
 
 
 if(WIN32)
-    target_link_libraries(VK-Engine 
+    target_link_libraries(V-Engine 
         ${GLFW_LIB}
         Vulkan::Vulkan)
 
@@ -65,11 +65,11 @@ if(WIN32)
         COMMENT "Running compile.bat to compile shaders"
     )
 
-    # Make sure shaders compile before VK-Engine builds
-    add_dependencies(VK-Engine CompileShaders)
+    # Make sure shaders compile before V-Engine builds
+    add_dependencies(V-Engine CompileShaders)
 
 elseif(UNIX)
-    target_link_libraries(VK-Engine 
+    target_link_libraries(V-Engine 
         glfw
         Vulkan::Vulkan)
 
@@ -83,7 +83,7 @@ elseif(UNIX)
         COMMENT "Running compile.sh to compile shaders"
     )
 
-    add_dependencies(VK-Engine CompileShaders)
+    add_dependencies(V-Engine CompileShaders)
 
 endif()
 
