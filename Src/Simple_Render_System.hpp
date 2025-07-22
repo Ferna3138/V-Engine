@@ -3,6 +3,7 @@
 #include "Renderer/Device.hpp"
 #include "Renderer/Pipeline.hpp"
 #include "Components/Game_Object.hpp"
+#include "Frame_Info.hpp"
 
 // Std
 #include <memory>
@@ -16,7 +17,7 @@ class SimpleRenderSystem{
         SimpleRenderSystem (const SimpleRenderSystem&) = delete;
         SimpleRenderSystem&operator = (const SimpleRenderSystem&) = delete;
 
-        void renderGameObjects(VkCommandBuffer commandBuffer, std::vector<GameObject>& gameObjects, const Camera& camera);
+        void renderGameObjects(FrameInfo &frameInfo, std::vector<GameObject>& gameObjects);
 
     private:
         void createPipelineLayout();

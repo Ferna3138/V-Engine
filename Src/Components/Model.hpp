@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Renderer/Device.hpp"
+#include "../Renderer/Buffer.hpp"
 
 // Libs
 #define GLM_FORCE_RADIANS
@@ -52,12 +53,11 @@ class Model{
 
         Device& device;
 
-        VkBuffer vertexBuffer;
-        VkDeviceMemory vertexBufferMemory;
+        std::unique_ptr<Buffer> vertexBuffer;
         uint32_t vertexCount;
 
         bool hasIndexBuffer = false;
-        VkBuffer indexBuffer;
-        VkDeviceMemory indexBufferMemory;
+        std::unique_ptr<Buffer> indexBuffer;
+
         uint32_t indexCount;
 };

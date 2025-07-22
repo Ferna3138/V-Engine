@@ -28,6 +28,8 @@ set(SOURCES
     Src/Components/Model.cpp
     Src/Components/Model.hpp
 
+    Src/Renderer/Buffer.cpp
+    Src/Renderer/Buffer.hpp
     Src/Renderer/Device.cpp
     Src/Renderer/Device.hpp
     Src/Renderer/Pipeline.cpp
@@ -46,6 +48,7 @@ set(SOURCES
 
     Src/First_App.cpp
     Src/First_App.hpp
+    Src/Frame_Info.hpp
     Src/main.cpp
     Src/Simple_Render_System.cpp
     Src/Simple_Render_System.hpp
