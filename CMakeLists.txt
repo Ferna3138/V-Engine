@@ -30,6 +30,8 @@ set(SOURCES
 
     Src/Renderer/Buffer.cpp
     Src/Renderer/Buffer.hpp
+    Src/Renderer/Descriptors.cpp
+    Src/Renderer/Descriptors.hpp
     Src/Renderer/Device.cpp
     Src/Renderer/Device.hpp
     Src/Renderer/Pipeline.cpp

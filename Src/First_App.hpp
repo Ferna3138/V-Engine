@@ -4,6 +4,7 @@
 #include "Renderer/Window.hpp"
 #include "Components/Game_Object.hpp"
 #include "Renderer/Renderer.hpp"
+#include "Renderer/Descriptors.hpp"
 
 // Std
 #include <memory>
@@ -28,5 +29,8 @@ class FirstApp {
         Window window{WIDTH, HEIGHT, "V-Engine"};
         Device device{window};
         Renderer renderer{window, device};
+
+        // Note: Order of declarations matters
+        std::unique_ptr<DescriptorPool> globalPool;
         std::vector<GameObject> gameObjects;
   };
