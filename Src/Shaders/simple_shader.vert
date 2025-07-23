@@ -12,7 +12,6 @@ layout(location = 1) out vec3 fragPosWorld;
 layout(location = 2) out vec3 fragNormalWorld;
 
 
-
 layout(push_constant) uniform Push {
     mat4 modelMatrix; // Projection * View * Model
     mat4 normalMatrix; 
