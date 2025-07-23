@@ -1,21 +1,10 @@
 #version 450
 
+#include "shader_common.glsl"
+
 layout (location = 0) in vec2 fragOffset;
 layout (location = 0) out vec4 outColor;
 
-struct PointLight{
-    vec4 position;
-    vec4 colour;
-};
-
-layout(set = 0, binding = 0) uniform GlobalUbo {
-    mat4 projection;
-    mat4 view;
-    vec4 ambientLightColor; // w is intensity
-    PointLight pointLights[10];
-    int numLights;
-  
-} ubo;
 
 layout(push_constant) uniform Push {
     vec4 lightPosition; // Position in world space

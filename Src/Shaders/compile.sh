@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GLSLC="$SCRIPT_DIR/../../Dependencies/shader_compile/glslc"
 
 # Shader file extensions to compile
-EXTENSIONS=("vert" "frag" "rgen" "rchit" "rmiss" "glsl" "comp")
+EXTENSIONS=("vert" "frag" "rgen" "rchit" "rmiss" "comp")
 
 echo "Compiling shaders in $SCRIPT_DIR..."
 

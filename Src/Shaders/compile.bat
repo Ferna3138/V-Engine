@@ -9,7 +9,7 @@ set SHADER_DIR=%~dp0
 cd /d %SHADER_DIR%
 
 REM List of shader file extensions to compile
-set EXTENSIONS=vert frag rgen rchit rmiss glsl comp
+set EXTENSIONS=vert frag rgen rchit rmiss comp
 
 echo Compiling shaders in %SHADER_DIR%...
 
