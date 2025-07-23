@@ -20,13 +20,6 @@
 #include <glm/gtc/constants.hpp>
 
 
-struct GlobalUbo{
-    glm::mat4 projection{1.f};
-    glm::mat4 view{1.f};
-    glm::vec4 ambientLightColour{1.f, 1.f, 1.f, 0.02f}; // W is intensity
-    glm::vec3 lightPosition{-1.f};
-    alignas (16) glm::vec4 lightColour{1.f}; // W is intensity
-};
 
 FirstApp::FirstApp() {
     globalPool = DescriptorPool::Builder(device)
@@ -111,6 +104,7 @@ void FirstApp::run() {
             GlobalUbo ubo{};
             ubo.projection = camera.getProjection();
             ubo.view = camera.getView();
+            pointLightSystem.update(frameInfo, ubo);
             uboBuffers[frameIndex]->writeToBuffer(&ubo);
             uboBuffers[frameIndex]->flush();
             
@@ -152,4 +146,26 @@ void FirstApp::loadGameObjects() {
     floor.transform.translation = {0.f, 0.5f, 0.0f};
     floor.transform.scale = glm::vec3{3.f, 1.0f, 3.f};
     gameObjects.emplace(floor.getId(), std::move(floor));
+
+    
+    
+    
+    std::vector<glm::vec3> lightColors{
+        {0.956f, 0.262f, 0.211f},  // Soft red (sunset red)
+        {0.129f, 0.588f, 0.953f},  // Clear blue (sky/cool fill light)
+        {0.298f, 0.686f, 0.314f},  // Natural green (forest bounce)
+        {1.000f, 0.839f, 0.000f},  // Warm yellow (torch/firelight)
+        {0.616f, 0.153f, 0.690f},  // Lavender (magic/night light)
+        {0.933f, 0.910f, 0.667f}   // Pale warm white (keylight / candle)
+    };
+    
+    for (int i = 0; i < lightColors.size(); i++) {
+        auto pointLight = GameObject::makePointLight(0.2f);
+        pointLight.colour = lightColors[i];
+        auto rotateLight = glm::rotate(glm::mat4(1.f), (i * glm::two_pi<float>() / lightColors.size()), glm::vec3(0.f, -1.f, 0.f));
+        pointLight.transform.translation = glm::vec3(rotateLight * glm::vec4(-1.f, -1.f, -1.f, 1.f));
+        gameObjects.emplace(pointLight.getId(), std::move(pointLight));
+        
+    }
+
 }

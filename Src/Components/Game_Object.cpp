@@ -56,3 +56,12 @@ glm::mat3 GameObject::TransformComponent::normalMatrix(){
         }
     };
 }
+
+GameObject GameObject::makePointLight(float intensity, float radius, glm::vec3 colour){
+    GameObject gameObj = GameObject::createGameObject();
+    gameObj.colour = colour;
+    gameObj.transform.scale.x = radius;
+    gameObj.pointLight = std::make_unique<PointLightComponent>();
+    gameObj.pointLight->lightIntensity = intensity;
+    return gameObj;
+}
