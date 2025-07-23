@@ -1,10 +1,13 @@
 #include "Keyboard_Movement_Controller.hpp"
 
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <iostream>
 
-void KeyboardMovementController::mouseMove(GLFWwindow *window, float dt, GameObject &gameObject) {
+void KeyboardMovementController::mouseMove(GLFWwindow* window, float dt, GameObject& gameObject) {
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
 
@@ -14,36 +17,53 @@ void KeyboardMovementController::mouseMove(GLFWwindow *window, float dt, GameObj
     double dx = xpos - lastX;
     double dy = ypos - lastY;
 
+    // Static quaternion to hold camera orientation
+    static glm::quat orientation = glm::quat(glm::vec3(
+        gameObject.transform.rotation.x,
+        gameObject.transform.rotation.y,
+        gameObject.transform.rotation.z
+    ));
+
+    // Left click = orbit (rotate camera orientation)
     if (stateLeft == GLFW_PRESS) {
-        // Rotate camera
-        gameObject.transform.rotation.y += static_cast<float>(-dx) * 0.002f;  // Yaw
-        gameObject.transform.rotation.x -= static_cast<float>(-dy) * 0.002f;  // Pitch
-        gameObject.transform.rotation.x = glm::clamp(gameObject.transform.rotation.x, -1.5f, 1.5f);
+        float yaw = -static_cast<float>(dx) * 0.002f;
+        float pitch = -static_cast<float>(dy) * 0.002f;
+
+        glm::quat qPitch = glm::angleAxis(pitch, glm::vec3(1.f, 0.f, 0.f));
+        glm::quat qYaw   = glm::angleAxis(yaw,   glm::vec3(0.f, 1.f, 0.f));
+
+        orientation = glm::normalize(qYaw * orientation * qPitch);
     }
 
+    // Extract local axes from quaternion
+    glm::mat3 rotMatrix = glm::mat3_cast(orientation);
+    glm::vec3 forward = -rotMatrix[2];  // negative Z
+    glm::vec3 right   =  rotMatrix[0];  // positive X
+    glm::vec3 up      =  rotMatrix[1];  // positive Y
+
+    // Right click = pan along right and up axes
     if (stateRight == GLFW_PRESS) {
-        // Pan camera
-        float deltaSpeed = moveSpeed * dt;
-        float yaw = gameObject.transform.rotation.y;
-        glm::vec3 forward{sin(yaw), 0.f, cos(yaw)};
-        glm::vec3 right(forward.z, 0.f, -forward.x);
-        glm::vec3 up{0.f, -1.f, 0.f};
-
-        gameObject.transform.translation += static_cast<float>(-dx) * right * deltaSpeed * 0.1f;
-        gameObject.transform.translation += static_cast<float>(dy) * up * deltaSpeed * 0.1f;
+        float deltaSpeed = moveSpeed * dt * 0.1f;
+        gameObject.transform.translation += static_cast<float>(-dx) * right * deltaSpeed;
+        gameObject.transform.translation += static_cast<float>(dy) * up * deltaSpeed;
     }
 
-    // Scroll to move forward/backward
+    // Scroll = move along forward axis
     if (std::abs(scrollOffset) > std::numeric_limits<float>::epsilon()) {
-        float yaw = gameObject.transform.rotation.y;
-        glm::vec3 forward{sin(yaw), 0.f, cos(yaw)};
         gameObject.transform.translation += scrollOffset * forward * dt * moveSpeed;
         scrollOffset = 0.f;
     }
 
+    // Store final orientation back as Euler for consistency with the rest of your engine
+    glm::vec3 euler = glm::eulerAngles(orientation);
+    gameObject.transform.rotation.x = euler.x;
+    gameObject.transform.rotation.y = euler.y;
+    gameObject.transform.rotation.z = euler.z;
+
     lastX = xpos;
     lastY = ypos;
 }
+
 
 void KeyboardMovementController::moveInPlaneXZ(GLFWwindow *window, float dt, GameObject &gameObject) {
     glm::vec3 rotate{0};
