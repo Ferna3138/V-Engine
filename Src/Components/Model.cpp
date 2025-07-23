@@ -1,6 +1,6 @@
 #include "Model.hpp"
 
-#include "../Utils.hpp"
+#include "Utils.hpp"
 
 // libs
 #define TINYOBJLOADER_IMPLEMENTATION

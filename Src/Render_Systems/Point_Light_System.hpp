@@ -9,15 +9,15 @@
 #include <memory>
 #include <vector>
 
-class SimpleRenderSystem{
+class PointLightSystem{
     public:
-        SimpleRenderSystem(Device& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
-        ~SimpleRenderSystem();
+        PointLightSystem(Device& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
+        ~PointLightSystem();
 
-        SimpleRenderSystem (const SimpleRenderSystem&) = delete;
-        SimpleRenderSystem&operator = (const SimpleRenderSystem&) = delete;
+        PointLightSystem (const PointLightSystem&) = delete;
+        PointLightSystem&operator = (const PointLightSystem&) = delete;
 
-        void renderGameObjects(FrameInfo &frameInfo, std::vector<GameObject>& gameObjects);
+        void render(FrameInfo &frameInfo);
 
     private:
         void createPipelineLayout(VkDescriptorSetLayout globalSetLayout);

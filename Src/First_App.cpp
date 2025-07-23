@@ -2,7 +2,8 @@
 
 #include "Systems/Camera.hpp"
 #include "Systems/Keyboard_Movement_Controller.hpp"
-#include "Simple_Render_System.hpp"
+#include "Render_Systems/Simple_Render_System.hpp"
+#include "Render_Systems/Point_Light_System.hpp"
 #include "Renderer/Buffer.hpp"
 
 #define GLM_FORCE_RADIANS
@@ -20,7 +21,8 @@
 
 
 struct GlobalUbo{
-    glm::mat4 projectionView{1.f};
+    glm::mat4 projection{1.f};
+    glm::mat4 view{1.f};
     glm::vec4 ambientLightColour{1.f, 1.f, 1.f, 0.02f}; // W is intensity
     glm::vec3 lightPosition{-1.f};
     alignas (16) glm::vec4 lightColour{1.f}; // W is intensity
@@ -62,7 +64,10 @@ void FirstApp::run() {
     }
 
 
+    // Pipeline creation
     SimpleRenderSystem simpleRenderSystem{device, renderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
+    PointLightSystem pointLightSystem{device, renderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
+
     Camera camera{};
     camera.setViewTarget(glm::vec3(0.f, 0.f, -2.f), glm::vec3(0.f, 0.f, 2.5f));
 
@@ -104,13 +109,15 @@ void FirstApp::run() {
 
             // Update
             GlobalUbo ubo{};
-            ubo.projectionView = camera.getProjection() * camera.getView();
+            ubo.projection = camera.getProjection();
+            ubo.view = camera.getView();
             uboBuffers[frameIndex]->writeToBuffer(&ubo);
             uboBuffers[frameIndex]->flush();
             
             // Render
             renderer.beginSwapChainRenderPass(commandBuffer);
             simpleRenderSystem.renderGameObjects(frameInfo);
+            pointLightSystem.render(frameInfo);
             renderer.endSwapChainRenderPass(commandBuffer);
             renderer.endFrame();
         }

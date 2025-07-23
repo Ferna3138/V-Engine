@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../Renderer/Device.hpp"
-#include "../Renderer/Buffer.hpp"
+#include "Renderer/Device.hpp"
+#include "Renderer/Buffer.hpp"
 
 // Libs
 #define GLM_FORCE_RADIANS

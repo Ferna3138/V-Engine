@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../Components/Game_Object.hpp"
-#include "../Renderer/Window.hpp"
+#include "Components/Game_Object.hpp"
+#include "Renderer/Window.hpp"
 
 class KeyboardMovementController {
 public:

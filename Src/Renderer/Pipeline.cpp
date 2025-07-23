@@ -1,5 +1,5 @@
 #include "Pipeline.hpp"
-#include "../Components/Model.hpp"
+#include "Components/Model.hpp"
 
 #include <fstream>
 #include <stdexcept>
@@ -73,8 +73,8 @@ void Pipeline::createGraphicsPipeline(
   shaderStages[1].pNext = nullptr;
   shaderStages[1].pSpecializationInfo = nullptr;
 
-  auto bindingDescriptions = Model::Vertex::getBindingDescriptions();
-  auto attributeDescriptions = Model::Vertex::getAttributeDescriptions();
+  auto& bindingDescriptions = configInfo.bindingDescriptions;
+  auto& attributeDescriptions = configInfo.attributeDescriptions;
   VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
   vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
   vertexInputInfo.vertexAttributeDescriptionCount =
@@ -198,4 +198,7 @@ void Pipeline::defaultPipelineConfigInfo(PipelineConfigInfo& configInfo) {
   configInfo.dynamicStateInfo.dynamicStateCount =
       static_cast<uint32_t>(configInfo.dynamicStateEnables.size());
   configInfo.dynamicStateInfo.flags = 0;
+
+  configInfo.bindingDescriptions = Model::Vertex::getBindingDescriptions();
+  configInfo.attributeDescriptions = Model::Vertex::getAttributeDescriptions();
 }

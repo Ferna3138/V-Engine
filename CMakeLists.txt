@@ -17,50 +17,16 @@ endif()
 set(TINYOBJ_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/tinyobjloader)
 
 
-# Define source files
-set(SOURCES
-    Src/Shaders/compile.bat
-    Src/Shaders/simple_shader.frag
-    Src/Shaders/simple_shader.vert
-    
-    Src/Components/Game_Object.cpp
-    Src/Components/Game_Object.hpp
-    Src/Components/Model.cpp
-    Src/Components/Model.hpp
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/*.cpp)
+file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/*.hpp)
 
-    Src/Renderer/Buffer.cpp
-    Src/Renderer/Buffer.hpp
-    Src/Renderer/Descriptors.cpp
-    Src/Renderer/Descriptors.hpp
-    Src/Renderer/Device.cpp
-    Src/Renderer/Device.hpp
-    Src/Renderer/Pipeline.cpp
-    Src/Renderer/Pipeline.hpp
-    Src/Renderer/Renderer.cpp
-    Src/Renderer/Renderer.hpp
-    Src/Renderer/Swap_Chain.cpp
-    Src/Renderer/Swap_Chain.hpp
-    Src/Renderer/Window.cpp
-    Src/Renderer/Window.hpp
-    
-    Src/Systems/Camera.cpp
-    Src/Systems/Camera.hpp
-    Src/Systems/Keyboard_Movement_Controller.cpp
-    Src/Systems/Keyboard_Movement_Controller.hpp
 
-    Src/First_App.cpp
-    Src/First_App.hpp
-    Src/Frame_Info.hpp
-    Src/main.cpp
-    Src/Simple_Render_System.cpp
-    Src/Simple_Render_System.hpp
-)
-
-add_executable(V-Engine ${SOURCES})
+add_executable(V-Engine ${SOURCES} ${HEADERS})
 
 # Include directories
 target_include_directories(V-Engine 
     PRIVATE
+    ${CMAKE_SOURCE_DIR}/Src
     Dependencies
     ${TINYOBJ_PATH})
 
@@ -103,9 +69,14 @@ endif()
 
 
 # Organize files into filters for Visual Studio
-foreach(source ${SOURCES})
-    get_filename_component(source_path ${source} PATH)
-    string(REPLACE "${CMAKE_SOURCE_DIR}/src" "" filter_path ${source_path})
-    string(REPLACE "/" "\\" filter_path ${filter_path})
-    source_group(${filter_path} FILES ${source})
+foreach(source_file ${SOURCES} ${HEADERS})
+    get_filename_component(source_path ${source_file} PATH)
+    file(RELATIVE_PATH source_path_rel ${CMAKE_SOURCE_DIR}/Src ${source_path})
+
+    if(NOT source_path_rel STREQUAL "")
+        string(REPLACE "/" "\\" group_path ${source_path_rel})
+        source_group("${group_path}" FILES ${source_file})
+    else()
+        source_group("" FILES ${source_file})
+    endif()
 endforeach()

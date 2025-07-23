@@ -7,11 +7,12 @@ layout(location = 2) in vec3 fragNormalWorld;
 layout(location = 0) out vec4 outColour;
 
 layout(set = 0, binding = 0) uniform GlobalUbo{
-    mat4 projectionViewMatrix;
+    mat4 projection;
+    mat4 view;
     vec4 ambientLightColour; // W is intensity
     vec3 lightPosition; // Position of the light in world space
     vec4 lightColour; // W is intensity
-} ubo; 
+} ubo;
 
 layout(push_constant) uniform Push {
     mat4 modelMatrix; // Projection * View * Model
