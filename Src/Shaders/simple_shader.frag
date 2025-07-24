@@ -18,47 +18,33 @@ layout(push_constant) uniform Push {
 
 
 void main() {
+    vec3 diffuseLight = ubo.ambientLightColor.xyz * ubo.ambientLightColor.w;
+    vec3 specularLight = vec3(0.0);
     vec3 surfaceNormal = normalize(fragNormalWorld);
-    vec3 viewDir = normalize(ubo.invView[3].xyz - fragPosWorld);
 
-    vec3 albedo = fragColour;
-    float roughness = 0.5; // You could pass this per-material
-    float metallic = 0.2;  // Also optional per-material
+    vec3 cameraPosWorld = ubo.invView[3].xyz;
+    vec3 viewDirection = normalize(cameraPosWorld - fragPosWorld);
 
-    vec3 F0 = mix(vec3(0.04), albedo, metallic); // Base reflectivity
 
-    vec3 Lo = vec3(0.0);
-
-    for (int i = 0; i < ubo.numLights; ++i) {
+    for(int i = 0; i < ubo.numLights; i++) {
         PointLight light = ubo.pointLights[i];
-        vec3 lightDir = light.position.xyz - fragPosWorld;
-        float distance = length(lightDir);
-        lightDir = normalize(lightDir);
+        vec3 directionToLight = light.position.xyz - fragPosWorld;
+        float attenuation = 1.0 / dot(directionToLight, directionToLight);
+        directionToLight = normalize(directionToLight);
 
-        vec3 H = normalize(viewDir + lightDir);
-        float attenuation = 1.0 / (distance * distance);
-        vec3 radiance = light.colour.xyz * light.colour.w * attenuation;
+        float cosAngIncidence = max(dot(surfaceNormal, directionToLight), 0);
+        vec3 intensity = light.colour.xyz * light.colour.w * attenuation;
 
-        // Cook-Torrance BRDF terms
-        float NDF = DistributionGGX(surfaceNormal, H, roughness);
-        float G = GeometrySmith(surfaceNormal, viewDir, lightDir, roughness);
-        vec3 F = FresnelSchlick(max(dot(H, viewDir), 0.0), F0);
+        diffuseLight += intensity * cosAngIncidence;
 
-        vec3 numerator = NDF * G * F;
-        float denominator = 4.0 * max(dot(surfaceNormal, viewDir), 0.0) * max(dot(surfaceNormal, lightDir), 0.0) + 0.001;
-        vec3 specular = numerator / denominator;
 
-        float NdotL = max(dot(surfaceNormal, lightDir), 0.0);
-        vec3 kS = F;
-        vec3 kD = vec3(1.0) - kS;
-        kD *= 1.0 - metallic;
-
-        Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+        // Specular Lighting
+        vec3 halfAngle = normalize(directionToLight + viewDirection);
+        float blinnTerm = dot(surfaceNormal, halfAngle);
+        blinnTerm = clamp(blinnTerm, 0, 1);
+        blinnTerm = pow(blinnTerm, 128.0); // Shininess factor
+        specularLight += intensity * blinnTerm; 
     }
 
-    // Ambient
-    vec3 ambient = ubo.ambientLightColor.xyz * ubo.ambientLightColor.w * albedo;
-
-    vec3 color = ambient + Lo;
-    outColour = vec4(color, 1.0);
+    outColour = vec4(diffuseLight * fragColour + specularLight * fragColour, 1.0);
 }

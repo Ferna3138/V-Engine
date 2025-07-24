@@ -1,5 +1,3 @@
-const float PI = 3.14159265359;
-
 struct PointLight{
     vec4 position;
     vec4 colour;

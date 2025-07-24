@@ -161,7 +161,7 @@ void FirstApp::loadGameObjects() {
     };
     
     for (int i = 0; i < lightColors.size(); i++) {
-        auto pointLight = GameObject::makePointLight(1.2f);
+        auto pointLight = GameObject::makePointLight(0.2f);
         pointLight.colour = lightColors[i];
         auto rotateLight = glm::rotate(glm::mat4(1.f), (i * glm::two_pi<float>() / lightColors.size()), glm::vec3(0.f, -1.f, 0.f));
         pointLight.transform.translation = glm::vec3(rotateLight * glm::vec4(-1.f, -1.f, -1.f, 1.f));
