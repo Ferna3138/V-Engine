@@ -125,7 +125,7 @@ void FirstApp::run() {
 
 
 void FirstApp::loadGameObjects() {
-    std::shared_ptr<Model> model = Model::createModelFromFile(device, "Models/flat_vase.obj");
+    std::shared_ptr<Model> model = Model::createModelFromFile(device, "../Models/flat_vase.obj");
 
     auto flatVase = GameObject::createGameObject();
     flatVase.model = model;
@@ -134,14 +134,14 @@ void FirstApp::loadGameObjects() {
     gameObjects.emplace(flatVase.getId(), std::move(flatVase));
 
 
-    model = Model::createModelFromFile(device, "Models/smooth_vase.obj");
+    model = Model::createModelFromFile(device, "../Models/smooth_vase.obj");
     auto smoothVase = GameObject::createGameObject();
     smoothVase.model = model;
     smoothVase.transform.translation = {0.5f, 0.5f, 0.0f};
     smoothVase.transform.scale = glm::vec3{3.f, 1.5f, 3.f};
     gameObjects.emplace(smoothVase.getId(), std::move(smoothVase));
 
-    model = Model::createModelFromFile(device, "Models/quad.obj");
+    model = Model::createModelFromFile(device, "../Models/quad.obj");
     auto floor = GameObject::createGameObject();
     floor.model = model;
     floor.transform.translation = {0.f, 0.5f, 0.0f};
