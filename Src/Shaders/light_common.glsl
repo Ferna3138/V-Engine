@@ -1,6 +1,9 @@
 // GGX microfacet model functions
 // These functions are used to compute the distribution and geometry terms for PBR shading
 
+const float PI = 3.14159265359;
+
+
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
     float a = roughness * roughness;
     float a2 = a * a;
