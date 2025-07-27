@@ -24,11 +24,13 @@ file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/*.hpp)
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/Dependencies/imgui)
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
-    ${IMGUI_DIR}/imgui_draw.cpp
     ${IMGUI_DIR}/imgui_demo.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
     ${IMGUI_DIR}/imgui_widgets.cpp
-    ${IMGUI_DIR}/imgui_impl_vulkan.cpp
-    #${IMGUI_DIR}/imgui_impl_sdl2.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
+
 )
 
 add_executable(V-Engine ${SOURCES} ${HEADERS} ${IMGUI_SOURCES})
@@ -38,7 +40,8 @@ target_include_directories(V-Engine
     PRIVATE
     ${CMAKE_SOURCE_DIR}/Src
     Dependencies
-    ${TINYOBJ_PATH})
+    ${TINYOBJ_PATH}
+    ${IMGUI_DIR})
 
 
 if(WIN32)

@@ -9,6 +9,8 @@
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include "glm/glm.hpp"
+#include <glm/gtc/type_ptr.hpp>
+
 
 // Std
 #include <array>
@@ -29,7 +31,10 @@ FirstApp::FirstApp() {
     loadGameObjects();
 }
 
-FirstApp::~FirstApp() {}
+FirstApp::~FirstApp() {
+    ImGui_ImplVulkan_Shutdown();
+    vkDestroyDescriptorPool(device.device(), imguiPool, nullptr);
+}
 
 void FirstApp::run() {
 
@@ -62,6 +67,8 @@ void FirstApp::run() {
     PointLightSystem pointLightSystem{device, renderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
 
     
+
+    setUpImgui();
 
     Camera camera{};
     camera.setViewTarget(glm::vec3(0.f, 0.f, -2.f), glm::vec3(0.f, 0.f, 2.5f));
@@ -111,14 +118,23 @@ void FirstApp::run() {
             uboBuffers[frameIndex]->writeToBuffer(&ubo);
             uboBuffers[frameIndex]->flush();
             
+
+            renderUI();
+
             // Render
             renderer.beginSwapChainRenderPass(commandBuffer);
             simpleRenderSystem.renderGameObjects(frameInfo);
             pointLightSystem.render(frameInfo);
+
+            // Render ImGui Frame
+            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+
+
             renderer.endSwapChainRenderPass(commandBuffer);
             renderer.endFrame();
         }
     }
+
 
     vkDeviceWaitIdle(device.device());
 }
@@ -127,30 +143,14 @@ void FirstApp::run() {
 
 
 void FirstApp::loadGameObjects() {
-    std::shared_ptr<Model> model = Model::createModelFromFile(device, "../Models/flat_vase.obj");
+    std::shared_ptr<Model> model = Model::createModelFromFile(device, "../Models/Sponza_obj/sponza.obj");
 
-    auto flatVase = GameObject::createGameObject();
-    flatVase.model = model;
-    flatVase.transform.translation = {-0.5f, 0.5f, 0.0f};
-    flatVase.transform.scale = glm::vec3{3.f, 1.5f, 3.f};
-    gameObjects.emplace(flatVase.getId(), std::move(flatVase));
+    auto sponza = GameObject::createGameObject();
+    sponza.model = model;
+    sponza.transform.translation = {0.0f, 2.0f, 0.0f};
+    sponza.transform.scale = glm::vec3{-0.01f, -0.01f, -0.01f};
+    gameObjects.emplace(sponza.getId(), std::move(sponza));
 
-
-    model = Model::createModelFromFile(device, "../Models/smooth_vase.obj");
-    auto smoothVase = GameObject::createGameObject();
-    smoothVase.model = model;
-    smoothVase.transform.translation = {0.5f, 0.5f, 0.0f};
-    smoothVase.transform.scale = glm::vec3{3.f, 1.5f, 3.f};
-    gameObjects.emplace(smoothVase.getId(), std::move(smoothVase));
-
-    model = Model::createModelFromFile(device, "../Models/quad.obj");
-    auto floor = GameObject::createGameObject();
-    floor.model = model;
-    floor.transform.translation = {0.f, 0.5f, 0.0f};
-    floor.transform.scale = glm::vec3{3.f, 1.0f, 3.f};
-    gameObjects.emplace(floor.getId(), std::move(floor));
-
-    
     
     
     std::vector<glm::vec3> lightColors{
@@ -174,10 +174,36 @@ void FirstApp::loadGameObjects() {
 }
 
 
+void FirstApp::renderUI(){
+     // --- Begin ImGui frame ---
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    
+
+    // --- Draw UI ---
+    ImGui::Begin("Hello, world!");
+    ImGui::Text("Lights Radius");
+    static float lightRadius = 1.0f;
+    static PointLightSystem::PointLightPushConstants pushConst;
+
+    for (auto& [id, obj] : gameObjects) {
+        if (obj.pointLight == nullptr) continue;
+        
+        ImGui::PushID(&obj); // Ensures each slider has a unique ID
+        ImGui::SliderFloat("Light Radius", &obj.transform.scale.x, 0.01f, 10.0f);
+        ImGui::PopID();
+    }
+
+    ImGui::End();
+
+    ImGui::Render();
+}
+
 
 void FirstApp::setUpImgui() {
-    VkDescriptorPoolSize pool_sizes[] = {
-		{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+    VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
 		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
 		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
@@ -187,50 +213,40 @@ void FirstApp::setUpImgui() {
 		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
 		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
 		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-	};
+		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
 
-	VkDescriptorPoolCreateInfo pool_info = {};
+    VkDescriptorPoolCreateInfo pool_info = {};
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 	pool_info.maxSets = 1000;
-	pool_info.poolSizeCount = std::size(pool_sizes);
+	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
 	pool_info.pPoolSizes = pool_sizes;
 
-	VkDescriptorPool imguiPool;
+    //VkDescriptorPool imguiPool;
+    vkCreateDescriptorPool(device.device(), &pool_info, nullptr, &imguiPool);
 
+    // 2: initialize imgui library
 
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGui::StyleColorsDark();
+	// this initializes the core structures of imgui
+	ImGui::CreateContext();
 
+	// this initializes imgui for SDL
     ImGui_ImplGlfw_InitForVulkan(window.getGLFWwindow(), true);
 
-    
-    ImGui_ImplVulkan_InitInfo init_info = {};
+    // this initializes imgui for Vulkan
+	ImGui_ImplVulkan_InitInfo init_info = {};
 	init_info.Instance = device.getInstance();
 	init_info.PhysicalDevice = device.getPhysicalDevice();
 	init_info.Device = device.device();
 	init_info.Queue = device.graphicsQueue();
 	init_info.DescriptorPool = imguiPool;
 	init_info.MinImageCount = 3;
-	init_info.ImageCount = 3;
-	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+	init_info.ImageCount = SwapChain::MAX_FRAMES_IN_FLIGHT;
+	init_info.UseDynamicRendering = false;
+    init_info.RenderPass = renderer.getSwapChainRenderPass();
 
-    ImGui_ImplVulkan_Init(&init_info, renderer.getSwapChainRenderPass()); 
+    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-    if (auto commandBuffer = renderer.beginFrame()) {
-        ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
-    }
-    
-    //clear font textures from cpu data
-	ImGui_ImplVulkan_DestroyFontUploadObjects();
+	ImGui_ImplVulkan_Init(&init_info);
 
-	//add the destroy the imgui created structures
-    /*
-	_mainDeletionQueue.push_function([=]() {
-		vkDestroyDescriptorPool(device.device(), imguiPool, nullptr);
-		ImGui_ImplVulkan_Shutdown();
-	});
-    */
 }

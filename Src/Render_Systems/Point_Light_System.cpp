@@ -11,11 +11,7 @@
 
 #include <glm/gtc/constants.hpp>
 
-struct PointLightPushConstants{
-    glm::vec4 position{};
-    glm::vec4 colour{};
-    float radius;
-};
+
 
 PointLightSystem::PointLightSystem(Device& _device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout) : device{_device} {
     createPipelineLayout(globalSetLayout);
@@ -110,6 +106,7 @@ void PointLightSystem::render(FrameInfo &frameInfo) {
         push.position = glm::vec4(obj.transform.translation, 1.f);
         push.colour = glm::vec4(obj.colour, obj.pointLight->lightIntensity);
         push.radius = obj.transform.scale.x; // Assuming uniform scale for point light radius
+
 
         vkCmdPushConstants(
             frameInfo.commandBuffer,

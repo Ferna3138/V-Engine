@@ -32,3 +32,5 @@ struct FrameInfo {
     VkDescriptorSet globalDescriptorSet;
     GameObject::Map &gameObjects;
 };
+
+

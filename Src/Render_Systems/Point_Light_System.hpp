@@ -11,6 +11,11 @@
 
 class PointLightSystem{
     public:
+        struct PointLightPushConstants{
+            glm::vec4 position{};
+            glm::vec4 colour{};
+            float radius;
+        };
         PointLightSystem(Device& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
         ~PointLightSystem();
 
