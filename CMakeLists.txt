@@ -20,8 +20,18 @@ set(TINYOBJ_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/tinyobjloader)
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/*.cpp)
 file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/*.hpp)
 
+# ImGui sources
+set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/Dependencies/imgui)
+set(IMGUI_SOURCES
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_demo.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/imgui_impl_vulkan.cpp
+    #${IMGUI_DIR}/imgui_impl_sdl2.cpp
+)
 
-add_executable(V-Engine ${SOURCES} ${HEADERS})
+add_executable(V-Engine ${SOURCES} ${HEADERS} ${IMGUI_SOURCES})
 
 # Include directories
 target_include_directories(V-Engine 

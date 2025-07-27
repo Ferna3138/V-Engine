@@ -1,5 +1,9 @@
 #pragma once
 #define GLFW_INCLUDE_VULKAN
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_vulkan.h>
+
 #include <GLFW/glfw3.h>
 #include <string>
 
@@ -18,6 +22,7 @@ class Window {
         GLFWwindow *getGLFWwindow() const { return window; }
 
         void createWindowSurface(VkInstance instance, VkSurfaceKHR *surface);
+
     private:
         static void framebufferResizeCallback(GLFWwindow *window, int width, int height);
         void initWindow();

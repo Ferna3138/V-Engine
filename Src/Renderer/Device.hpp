@@ -76,6 +76,9 @@ class Device {
 
         VkPhysicalDeviceProperties properties;
 
+        VkInstance getInstance() {return instance;}
+        VkPhysicalDevice getPhysicalDevice() {return physicalDevice;}
+
     private:
         void createInstance();
         void setupDebugMessenger();

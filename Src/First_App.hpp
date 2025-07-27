@@ -24,6 +24,7 @@ class FirstApp {
         void run();
 
     private:
+        void setUpImgui();
         void loadGameObjects();
 
         Window window{WIDTH, HEIGHT, "V-Engine"};

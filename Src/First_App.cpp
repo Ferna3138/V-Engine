@@ -61,6 +61,8 @@ void FirstApp::run() {
     SimpleRenderSystem simpleRenderSystem{device, renderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
     PointLightSystem pointLightSystem{device, renderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
 
+    
+
     Camera camera{};
     camera.setViewTarget(glm::vec3(0.f, 0.f, -2.f), glm::vec3(0.f, 0.f, 2.5f));
 
@@ -169,4 +171,66 @@ void FirstApp::loadGameObjects() {
         
     }
 
+}
+
+
+
+void FirstApp::setUpImgui() {
+    VkDescriptorPoolSize pool_sizes[] = {
+		{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+	};
+
+	VkDescriptorPoolCreateInfo pool_info = {};
+	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+	pool_info.maxSets = 1000;
+	pool_info.poolSizeCount = std::size(pool_sizes);
+	pool_info.pPoolSizes = pool_sizes;
+
+	VkDescriptorPool imguiPool;
+
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplGlfw_InitForVulkan(window.getGLFWwindow(), true);
+
+    
+    ImGui_ImplVulkan_InitInfo init_info = {};
+	init_info.Instance = device.getInstance();
+	init_info.PhysicalDevice = device.getPhysicalDevice();
+	init_info.Device = device.device();
+	init_info.Queue = device.graphicsQueue();
+	init_info.DescriptorPool = imguiPool;
+	init_info.MinImageCount = 3;
+	init_info.ImageCount = 3;
+	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+    ImGui_ImplVulkan_Init(&init_info, renderer.getSwapChainRenderPass()); 
+
+    if (auto commandBuffer = renderer.beginFrame()) {
+        ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
+    }
+    
+    //clear font textures from cpu data
+	ImGui_ImplVulkan_DestroyFontUploadObjects();
+
+	//add the destroy the imgui created structures
+    /*
+	_mainDeletionQueue.push_function([=]() {
+		vkDestroyDescriptorPool(device.device(), imguiPool, nullptr);
+		ImGui_ImplVulkan_Shutdown();
+	});
+    */
 }
