@@ -1,10 +1,15 @@
 #pragma once
 
+#if defined(__APPLE__)
+    #define VK_ENABLE_BETA_EXTENSIONS
+#endif
+
 #include "Window.hpp"
 
 // std lib headers
 #include <string>
 #include <vector>
+#include <vulkan/vulkan.h>
 
 
 struct SwapChainSupportDetails {
@@ -101,7 +106,13 @@ class Device {
         VkQueue presentQueue_;
 
         const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
+
+        #if defined(__APPLE__)
+        const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
+                                                            VK_KHR_MAINTENANCE1_EXTENSION_NAME,
+                                                            VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME};
+        #else
         const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
                                                             VK_KHR_MAINTENANCE1_EXTENSION_NAME};
-
+        #endif
 };

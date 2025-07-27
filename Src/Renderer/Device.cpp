@@ -80,10 +80,19 @@ void Device::createInstance() {
     VkInstanceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
+    
+    #if defined(__APPLE__)
+        createInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+        auto extensions = getRequiredExtensions();
+        extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+        extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+    #elif
+        auto extensions = getRequiredExtensions();
+    #endif
 
-    auto extensions = getRequiredExtensions();
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
+    
 
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
     if (enableValidationLayers) {
@@ -96,6 +105,8 @@ void Device::createInstance() {
         createInfo.enabledLayerCount = 0;
         createInfo.pNext = nullptr;
     }
+
+
 
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
         throw std::runtime_error("failed to create instance!");
@@ -291,6 +302,8 @@ void Device::hasGflwRequiredInstanceExtensions() {
         throw std::runtime_error("Missing required glfw extension");
         }
     }
+
+
 }
 
 bool Device::checkDeviceExtensionSupport(VkPhysicalDevice device) {

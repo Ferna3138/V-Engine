@@ -49,10 +49,15 @@ if(WIN32)
     add_dependencies(V-Engine CompileShaders)
 
 elseif(UNIX)
-    target_link_libraries(V-Engine 
-        glfw
-        Vulkan::Vulkan)
-
+    if(APPLE)
+        target_link_libraries(V-Engine 
+            ${GLFW_LIB}
+            Vulkan::Vulkan)
+    else()
+        target_link_libraries(V-Engine 
+            glfw
+            Vulkan::Vulkan)
+    endif()
     set(SHADER_COMPILE_SCRIPT ${CMAKE_SOURCE_DIR}/Src/Shaders/compile.sh)
 
     execute_process(COMMAND chmod +x ${SHADER_COMPILE_SCRIPT})

@@ -6,8 +6,11 @@ set -e
 # Get directory of the script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Path to glslc (relative to script directory)
-GLSLC="$SCRIPT_DIR/../../Dependencies/shader_compile/glslc"
+if [[ "$(uname)" == "Darwin" ]]; then
+    GLSLC="$SCRIPT_DIR/../../Dependencies/shader_compile/Mac/glslc"
+else
+    GLSLC="$SCRIPT_DIR/../../Dependencies/shader_compile/glslc"
+fi
 
 # Shader file extensions to compile
 EXTENSIONS=("vert" "frag" "rgen" "rchit" "rmiss" "comp")
