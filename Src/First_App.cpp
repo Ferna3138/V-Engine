@@ -5,6 +5,7 @@
 #include "Render_Systems/Simple_Render_System.hpp"
 #include "Render_Systems/Point_Light_System.hpp"
 #include "Renderer/Buffer.hpp"
+#include "Components/Texture.hpp"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -27,6 +28,7 @@ FirstApp::FirstApp() {
     globalPool = DescriptorPool::Builder(device)
         .setMaxSets(SwapChain::MAX_FRAMES_IN_FLIGHT)
         .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, SwapChain::MAX_FRAMES_IN_FLIGHT)
+        .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, SwapChain::MAX_FRAMES_IN_FLIGHT)
         .build();
     loadGameObjects();
 }
@@ -49,8 +51,16 @@ void FirstApp::run() {
         uboBuffers[i]->map(); 
     }
 
+    Texture texture = Texture(device, "../Models/Sponza_obj/textures/sponza_ceiling_a_diff.tga");
+
+    VkDescriptorImageInfo imageInfo {};
+    imageInfo.sampler = texture.getSampler();
+    imageInfo.imageView = texture.getImageView();
+    imageInfo.imageLayout = texture.getImageLayout();
+
     auto globalSetLayout = DescriptorSetLayout::Builder(device)
         .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
+        .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
         .build();
     
     std::vector<VkDescriptorSet> globalDescriptorSets(SwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -58,6 +68,7 @@ void FirstApp::run() {
         auto bufferInfo = uboBuffers[i]->descriptorInfo();
         DescriptorWriter(*globalSetLayout, *globalPool)
             .writeBuffer(0, &bufferInfo)
+            .writeImage(1, &imageInfo)
             .build(globalDescriptorSets[i]);
     }
 
@@ -74,9 +85,8 @@ void FirstApp::run() {
     camera.setViewTarget(glm::vec3(0.f, 0.f, -2.f), glm::vec3(0.f, 0.f, 2.5f));
 
     auto viewerObject = GameObject::createGameObject();
-    viewerObject.transform.translation.z = -2.5f;
+    viewerObject.transform.translation.z = 0.5f;
     KeyboardMovementController cameraController{};
-
     auto currentTime = std::chrono::high_resolution_clock::now();
 
     while (!window.shouldClose()) {
@@ -123,6 +133,8 @@ void FirstApp::run() {
 
             // Render
             renderer.beginSwapChainRenderPass(commandBuffer);
+             
+            // Order here matters
             simpleRenderSystem.renderGameObjects(frameInfo);
             pointLightSystem.render(frameInfo);
 

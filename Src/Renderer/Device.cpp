@@ -86,7 +86,7 @@ void Device::createInstance() {
         auto extensions = getRequiredExtensions();
         extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
         extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-    #elif _WIN32
+    #else
         auto extensions = getRequiredExtensions();
     #endif
 
@@ -253,17 +253,16 @@ bool Device::checkValidationLayerSupport() {
         bool layerFound = false;
 
         for (const auto &layerProperties : availableLayers) {
-        if (strcmp(layerName, layerProperties.layerName) == 0) {
-            layerFound = true;
-            break;
-        }
+            if (strcmp(layerName, layerProperties.layerName) == 0) {
+                layerFound = true;
+                break;
+            }
         }
 
         if (!layerFound) {
-        return false;
+            return false;
         }
     }
-
     return true;
 }
 

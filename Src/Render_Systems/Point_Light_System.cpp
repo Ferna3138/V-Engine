@@ -5,9 +5,10 @@
 #include "glm/glm.hpp"
 
 // Std
-#include <cassert>
-#include <stdexcept>
 #include <array>
+#include <cassert>
+#include <map>
+#include <stdexcept>
 
 #include <glm/gtc/constants.hpp>
 
@@ -48,7 +49,7 @@ void PointLightSystem::createPipeline(VkRenderPass renderPass) {
 
     PipelineConfigInfo pipelineConfig{};
     Pipeline::defaultPipelineConfigInfo(pipelineConfig);
-
+    Pipeline::enableAlphaBlending(pipelineConfig);
     pipelineConfig.attributeDescriptions.clear();
     pipelineConfig.bindingDescriptions.clear();
 
@@ -85,6 +86,17 @@ void PointLightSystem::update(FrameInfo &frameInfo, GlobalUbo &ubo) {
 
 
 void PointLightSystem::render(FrameInfo &frameInfo) {
+    // Sort lights
+    std::map<float, GameObject::id_t> sortedLights;
+    for(auto& kv : frameInfo.gameObjects){ 
+        auto& obj = kv.second;
+        if(obj.pointLight == nullptr) continue;
+
+        auto offset = frameInfo.camera.getPosition() - obj.transform.translation;
+        float disSquared = glm::dot(offset, offset);
+        sortedLights[disSquared] = obj.getId();
+    }
+
     pipeline->bind(frameInfo.commandBuffer);    
 
     vkCmdBindDescriptorSets(
@@ -98,9 +110,10 @@ void PointLightSystem::render(FrameInfo &frameInfo) {
     );
 
 
-    for(auto& kv : frameInfo.gameObjects){
-        auto& obj = kv.second;
-        if(obj.pointLight == nullptr) continue;
+    // Iterate through sorted lights in reverse order
+    for(auto it = sortedLights.rbegin(); it != sortedLights.rend(); ++it) {
+        auto& obj = frameInfo.gameObjects.at(it->second);
+
 
         PointLightPushConstants push{};
         push.position = glm::vec4(obj.transform.translation, 1.f);
@@ -121,4 +134,3 @@ void PointLightSystem::render(FrameInfo &frameInfo) {
 
 
 }
-

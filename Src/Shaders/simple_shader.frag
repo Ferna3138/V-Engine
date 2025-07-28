@@ -7,8 +7,12 @@
 layout(location = 0) in vec3 fragColour;
 layout(location = 1) in vec3 fragPosWorld;
 layout(location = 2) in vec3 fragNormalWorld;
+layout(location = 3) in vec2 fragUV;
 
 layout(location = 0) out vec4 outColour;
+
+
+layout(set = 0, binding = 1) uniform sampler2D image;
 
 
 layout(push_constant) uniform Push {
@@ -33,7 +37,7 @@ void main() {
         directionToLight = normalize(directionToLight);
 
         float cosAngIncidence = max(dot(surfaceNormal, directionToLight), 0);
-        vec3 intensity = light.colour.xyz * light.colour.w * attenuation;
+        vec3 intensity = light.colour.xyz * light.colour.w * attenuation * 5;
 
         diffuseLight += intensity * cosAngIncidence;
 
@@ -45,6 +49,7 @@ void main() {
         blinnTerm = pow(blinnTerm, 128.0); // Shininess factor
         specularLight += intensity * blinnTerm; 
     }
+    vec3 imageColour = texture(image, fragUV).rgb;
 
-    outColour = vec4(diffuseLight * fragColour + specularLight * fragColour, 1.0);
+    outColour = vec4((diffuseLight * fragColour + specularLight * fragColour) * imageColour, 1.0);
 }
