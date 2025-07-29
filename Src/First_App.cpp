@@ -213,8 +213,7 @@ void FirstApp::renderUI() {
     // Draw  custom ImGui content
     ImGui::Begin("Control Panel");
     ImGui::Text("Hello from the left!");
-    float someSliderValue = 0.0f;
-    ImGui::SliderFloat("My Slider", &someSliderValue, 0.0f, 1.0f);
+    ImGui::Checkbox("Visualise Point Lights", &visualisePointLights);
     ImGui::End();
 
     ImGui::Render();

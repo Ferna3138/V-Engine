@@ -116,6 +116,21 @@ class Device {
                                                             VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME};
         #else
         const std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
-                                                            VK_KHR_MAINTENANCE1_EXTENSION_NAME};
+                                                            VK_KHR_MAINTENANCE1_EXTENSION_NAME
+                                                    };
         #endif
+
+
+        VkPhysicalDeviceAccelerationStructureFeaturesKHR accelFeature{
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR
+        };
+
+        VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtPipelineFeature{
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR
+        };
+
+        VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeature{
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES
+        };
+
 };
