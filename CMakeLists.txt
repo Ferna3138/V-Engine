@@ -29,8 +29,8 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui_widgets.cpp
     ${IMGUI_DIR}/imgui_tables.cpp
     ${IMGUI_DIR}/imgui_demo.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
     ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
 )
 
 add_library(imgui STATIC ${IMGUI_SOURCES})
@@ -77,8 +77,10 @@ elseif(UNIX)
             Vulkan::Vulkan)
     else()
         target_link_libraries(V-Engine 
+            imgui    
             glfw
-            Vulkan::Vulkan)
+            Vulkan::Vulkan
+            )
     endif()
     set(SHADER_COMPILE_SCRIPT ${CMAKE_SOURCE_DIR}/Src/Shaders/compile.sh)
 
