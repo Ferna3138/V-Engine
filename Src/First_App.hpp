@@ -8,6 +8,7 @@
 
 
 // ImGui
+#define IMGUI_ENABLE_DOCKING
 #include <imgui/imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
@@ -35,6 +36,7 @@ class FirstApp {
         void setUpImgui();
         void renderUI();
         VkDescriptorPool imguiPool;
+        bool visualisePointLights = true;
 
         void loadGameObjects();
 

@@ -16,6 +16,7 @@ class PointLightSystem{
             glm::vec4 colour{};
             float radius;
         };
+        
         PointLightSystem(Device& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout);
         ~PointLightSystem();
 

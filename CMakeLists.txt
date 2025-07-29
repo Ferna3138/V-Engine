@@ -22,18 +22,27 @@ file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/*.hpp)
 
 # ImGui sources
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/Dependencies/imgui)
+
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
-    ${IMGUI_DIR}/imgui_demo.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
     ${IMGUI_DIR}/imgui_widgets.cpp
     ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_demo.cpp
     ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
     ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
-
 )
 
-add_executable(V-Engine ${SOURCES} ${HEADERS} ${IMGUI_SOURCES})
+add_library(imgui STATIC ${IMGUI_SOURCES})
+
+target_include_directories(imgui PUBLIC
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
+)
+
+target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_DOCKING)
+
+add_executable(V-Engine ${SOURCES} ${HEADERS})
 
 # Include directories
 target_include_directories(V-Engine 

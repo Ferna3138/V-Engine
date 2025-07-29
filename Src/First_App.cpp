@@ -30,6 +30,7 @@ FirstApp::FirstApp() {
         .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, SwapChain::MAX_FRAMES_IN_FLIGHT)
         .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, SwapChain::MAX_FRAMES_IN_FLIGHT)
         .build();
+
     loadGameObjects();
 }
 
@@ -128,7 +129,6 @@ void FirstApp::run() {
             uboBuffers[frameIndex]->writeToBuffer(&ubo);
             uboBuffers[frameIndex]->flush();
             
-
             renderUI();
 
             // Render
@@ -136,7 +136,9 @@ void FirstApp::run() {
              
             // Order here matters
             simpleRenderSystem.renderGameObjects(frameInfo);
-            pointLightSystem.render(frameInfo);
+
+            if(visualisePointLights)
+                pointLightSystem.render(frameInfo);
 
             // Render ImGui Frame
             ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
@@ -147,10 +149,8 @@ void FirstApp::run() {
         }
     }
 
-
     vkDeviceWaitIdle(device.device());
 }
-
 
 
 
@@ -163,8 +163,6 @@ void FirstApp::loadGameObjects() {
     sponza.transform.scale = glm::vec3{-0.01f, -0.01f, -0.01f};
     gameObjects.emplace(sponza.getId(), std::move(sponza));
 
-    
-    
     std::vector<glm::vec3> lightColors{
         {0.956f, 0.262f, 0.211f},  // Soft red (sunset red)
         {0.129f, 0.588f, 0.953f},  // Clear blue (sky/cool fill light)
@@ -180,85 +178,76 @@ void FirstApp::loadGameObjects() {
         auto rotateLight = glm::rotate(glm::mat4(1.f), (i * glm::two_pi<float>() / lightColors.size()), glm::vec3(0.f, -1.f, 0.f));
         pointLight.transform.translation = glm::vec3(rotateLight * glm::vec4(-1.f, -1.f, -1.f, 1.f));
         gameObjects.emplace(pointLight.getId(), std::move(pointLight));
-        
     }
-
 }
 
 
-void FirstApp::renderUI(){
-     // --- Begin ImGui frame ---
+void FirstApp::renderUI() {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    
+    //ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 
-    // --- Draw UI ---
-    ImGui::Begin("Hello, world!");
-    ImGui::Text("Lights Radius");
-    static float lightRadius = 1.0f;
-    static PointLightSystem::PointLightPushConstants pushConst;
-
-    for (auto& [id, obj] : gameObjects) {
-        if (obj.pointLight == nullptr) continue;
-        
-        ImGui::PushID(&obj); // Ensures each slider has a unique ID
-        ImGui::SliderFloat("Light Radius", &obj.transform.scale.x, 0.01f, 10.0f);
-        ImGui::PopID();
-    }
-
+    ImGui::Begin("Test");
+    ImGui::Text("Dock me!");
     ImGui::End();
 
     ImGui::Render();
 }
 
-
 void FirstApp::setUpImgui() {
-    VkDescriptorPoolSize pool_sizes[] = { { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 } };
+    VkDescriptorPoolSize pool_sizes[] = {
+        {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+        {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
+        {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000},
+    };
 
-    VkDescriptorPoolCreateInfo pool_info = {};
-	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-	pool_info.maxSets = 1000;
-	pool_info.poolSizeCount = (uint32_t)std::size(pool_sizes);
-	pool_info.pPoolSizes = pool_sizes;
+    VkDescriptorPoolCreateInfo pool_info{};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets = 1000;
+    pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
+    pool_info.pPoolSizes = pool_sizes;
 
-    //VkDescriptorPool imguiPool;
     vkCreateDescriptorPool(device.device(), &pool_info, nullptr, &imguiPool);
 
-    // 2: initialize imgui library
+    // --- ImGui Init ---
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
 
-	// this initializes the core structures of imgui
-	ImGui::CreateContext();
+    // Enable Docking + Viewports
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
-	// this initializes imgui for SDL
+    ImGuiStyle& style = ImGui::GetStyle();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        style.WindowRounding = 0.0f;
+        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+    }
+
     ImGui_ImplGlfw_InitForVulkan(window.getGLFWwindow(), true);
 
-    // this initializes imgui for Vulkan
-	ImGui_ImplVulkan_InitInfo init_info = {};
-	init_info.Instance = device.getInstance();
-	init_info.PhysicalDevice = device.getPhysicalDevice();
-	init_info.Device = device.device();
-	init_info.Queue = device.graphicsQueue();
-	init_info.DescriptorPool = imguiPool;
-	init_info.MinImageCount = 3;
-	init_info.ImageCount = SwapChain::MAX_FRAMES_IN_FLIGHT;
-	init_info.UseDynamicRendering = false;
+    ImGui_ImplVulkan_InitInfo init_info{};
+    init_info.Instance = device.getInstance();
+    init_info.PhysicalDevice = device.getPhysicalDevice();
+    init_info.Device = device.device();
+    init_info.Queue = device.graphicsQueue();
+    init_info.DescriptorPool = imguiPool;
+    init_info.MinImageCount = 3;
+    init_info.ImageCount = SwapChain::MAX_FRAMES_IN_FLIGHT;
+    init_info.UseDynamicRendering = false;
     init_info.RenderPass = renderer.getSwapChainRenderPass();
-
     init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-	ImGui_ImplVulkan_Init(&init_info);
-
+    ImGui_ImplVulkan_Init(&init_info);
 }

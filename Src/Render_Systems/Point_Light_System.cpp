@@ -120,7 +120,6 @@ void PointLightSystem::render(FrameInfo &frameInfo) {
         push.colour = glm::vec4(obj.colour, obj.pointLight->lightIntensity);
         push.radius = obj.transform.scale.x; // Assuming uniform scale for point light radius
 
-
         vkCmdPushConstants(
             frameInfo.commandBuffer,
             pipelineLayout,
