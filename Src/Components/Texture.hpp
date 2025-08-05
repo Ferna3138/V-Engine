@@ -4,6 +4,7 @@
 
 // std
 #include <string>
+#include <cmath>
 
 class Texture{
     public:

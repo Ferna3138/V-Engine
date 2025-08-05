@@ -35,9 +35,13 @@ set(IMGUI_SOURCES
 
 add_library(imgui STATIC ${IMGUI_SOURCES})
 
+# ImGui Include Directories
 target_include_directories(imgui PUBLIC
+    ${Vulkan_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/Dependencies/
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
+    
 )
 
 target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_DOCKING)
@@ -50,13 +54,15 @@ target_include_directories(V-Engine
     ${CMAKE_SOURCE_DIR}/Src
     Dependencies
     ${TINYOBJ_PATH}
-    ${IMGUI_DIR})
+)
 
 
 if(WIN32)
     target_link_libraries(V-Engine 
+        imgui
         ${GLFW_LIB}
-        Vulkan::Vulkan)
+        Vulkan::Vulkan
+        )
 
     set(SHADER_COMPILE_SCRIPT ${CMAKE_SOURCE_DIR}/Src/Shaders/compile.bat)
 
@@ -72,7 +78,7 @@ if(WIN32)
 
 elseif(UNIX)
     if(APPLE)
-        target_link_libraries(V-Engine 
+        target_link_libraries(V-Engine
             ${GLFW_LIB}
             Vulkan::Vulkan)
     else()
@@ -95,6 +101,7 @@ elseif(UNIX)
     add_dependencies(V-Engine CompileShaders)
 
 endif()
+
 
 
 # Organize files into filters for Visual Studio
