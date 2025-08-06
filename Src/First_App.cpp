@@ -39,6 +39,11 @@ FirstApp::~FirstApp() {
     vkDestroyDescriptorPool(device.device(), imguiPool, nullptr);
 }
 
+
+unsigned int FirstApp::make_entity() {
+    return entity_count++;
+}
+
 void FirstApp::run() {
 
     std::vector<std::unique_ptr<Buffer>> uboBuffers(SwapChain::MAX_FRAMES_IN_FLIGHT);

@@ -9,4 +9,9 @@ struct TransformComponent{
         
         glm::mat4 mat4();
         glm::mat3 normalMatrix();
-    };
+};
+
+struct ModelComponent{
+    std::shared_ptr<Model> model{};
+};
+

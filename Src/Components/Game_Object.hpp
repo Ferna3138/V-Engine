@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Components.hpp"
 #include "Model.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 #include <memory>
@@ -11,14 +12,7 @@ struct PointLightComponent {
 };
 
 class GameObject {
-    struct TransformComponent{
-        glm::vec3 translation{};
-        glm::vec3 scale{1.f, 1.f, 1.f};
-        glm::vec3 rotation{0.f}; // in radians
-        
-        glm::mat4 mat4();
-        glm::mat3 normalMatrix();
-    };
+    
 
     public:
         using id_t = unsigned int;

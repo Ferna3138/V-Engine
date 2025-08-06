@@ -31,6 +31,8 @@ class FirstApp {
 
         void run();
 
+        unsigned int make_entity();
+
     private:
         // ImGui
         void setUpImgui();
@@ -39,6 +41,8 @@ class FirstApp {
         bool visualisePointLights = true;
 
         void loadGameObjects();
+
+        unsigned int entity_count = 0;
 
         Window window{WIDTH, HEIGHT, "V-Engine"};
         Device device{window};

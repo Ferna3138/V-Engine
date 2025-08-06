@@ -16,6 +16,9 @@ endif()
 # Set TinyOBJ path
 set(TINYOBJ_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/tinyobjloader)
 
+# Set EnTT path
+set(ENTT_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/EnTT)
+
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/*.cpp)
 file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/*.hpp)
@@ -41,7 +44,6 @@ target_include_directories(imgui PUBLIC
     ${CMAKE_SOURCE_DIR}/Dependencies/
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
-    
 )
 
 target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_DOCKING)
@@ -54,6 +56,7 @@ target_include_directories(V-Engine
     ${CMAKE_SOURCE_DIR}/Src
     Dependencies
     ${TINYOBJ_PATH}
+    ${ENTT_PATH}
 )
 
 
