@@ -35,6 +35,8 @@ FirstApp::FirstApp() {
 }
 
 FirstApp::~FirstApp() {
+    ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
+
     ImGui_ImplVulkan_Shutdown();
     vkDestroyDescriptorPool(device.device(), imguiPool, nullptr);
 }
@@ -155,6 +157,8 @@ void FirstApp::run() {
     }
 
     vkDeviceWaitIdle(device.device());
+    ImGui::SaveIniSettingsToDisk("imgui.ini");
+
 }
 
 
@@ -250,6 +254,9 @@ void FirstApp::setUpImgui() {
     // --- ImGui Init ---
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+
+    ImGui::GetIO().IniFilename = "imgui.ini"; // Optional, defaults to this
+
 
     // Enable Docking + Viewports
     ImGuiIO& io = ImGui::GetIO();
