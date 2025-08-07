@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Model.hpp"
+#include <memory>
 #include <glm/glm.hpp>
 
 struct TransformComponent{

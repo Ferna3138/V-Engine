@@ -82,14 +82,17 @@ if(WIN32)
 elseif(UNIX)
     if(APPLE)
         target_link_libraries(V-Engine
+            imgui
             ${GLFW_LIB}
             Vulkan::Vulkan)
     else()
-        target_link_libraries(V-Engine 
-            imgui    
+        add_subdirectory(${CMAKE_SOURCE_DIR}/Dependencies/glfw)
+
+        target_link_libraries(V-Engine
+            imgui
             glfw
-            Vulkan::Vulkan
-            )
+            Vulkan::Vulkan)
+
     endif()
     set(SHADER_COMPILE_SCRIPT ${CMAKE_SOURCE_DIR}/Src/Shaders/compile.sh)
 
