@@ -88,6 +88,12 @@ elseif(UNIX)
     else()
         add_subdirectory(${CMAKE_SOURCE_DIR}/Dependencies/glfw)
 
+        # Add GLFW (as submodule)
+        set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+        set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+        set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+
         target_link_libraries(V-Engine
             imgui
             glfw
