@@ -7,13 +7,8 @@
 #include <unordered_map>
 
 
-struct PointLightComponent {
-    float lightIntensity = 1.0f; // Intensity of the light
-};
 
 class GameObject {
-    
-
     public:
         using id_t = unsigned int;
         using Map = std::unordered_map<id_t, GameObject>;

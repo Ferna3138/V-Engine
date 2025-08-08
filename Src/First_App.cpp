@@ -42,9 +42,7 @@ FirstApp::~FirstApp() {
 }
 
 
-unsigned int FirstApp::make_entity() {
-    return entity_count++;
-}
+
 
 void FirstApp::run() {
 
@@ -124,7 +122,7 @@ void FirstApp::run() {
                 commandBuffer,
                 camera,
                 globalDescriptorSets[frameIndex],
-                gameObjects
+                scene.getRegistry()
             };
 
             // Update
@@ -132,6 +130,7 @@ void FirstApp::run() {
             ubo.projection = camera.getProjection();
             ubo.view = camera.getView();
             ubo.inverseView = camera.getInverseView();
+            
             pointLightSystem.update(frameInfo, ubo);
             uboBuffers[frameIndex]->writeToBuffer(&ubo);
             uboBuffers[frameIndex]->flush();
@@ -163,14 +162,17 @@ void FirstApp::run() {
 
 
 
+
 void FirstApp::loadGameObjects() {
     std::shared_ptr<Model> model = Model::createModelFromFile(device, "../Models/Sponza_obj/sponza.obj");
 
-    auto sponza = GameObject::createGameObject();
-    sponza.model = model;
-    sponza.transform.translation = {0.0f, 2.0f, 0.0f};
-    sponza.transform.scale = glm::vec3{-0.01f, -0.01f, -0.01f};
-    gameObjects.emplace(sponza.getId(), std::move(sponza));
+
+
+    entt::entity sponza = scene.createModelEntity(model);
+    auto& transform = scene.getRegistry().get<TransformComponent>(sponza);
+    transform.translation = {0.0f, 2.0f, 0.0f};
+    transform.scale = glm::vec3{-0.01f, -0.01f, -0.01f};
+
 
     std::vector<glm::vec3> lightColors{
         {0.956f, 0.262f, 0.211f},  // Soft red (sunset red)
@@ -182,13 +184,15 @@ void FirstApp::loadGameObjects() {
     };
     
     for (int i = 0; i < lightColors.size(); i++) {
-        auto pointLight = GameObject::makePointLight(0.2f);
-        pointLight.colour = lightColors[i];
+        entt::entity pointLight = scene.createPointLight(0.2f);
         auto rotateLight = glm::rotate(glm::mat4(1.f), (i * glm::two_pi<float>() / lightColors.size()), glm::vec3(0.f, -1.f, 0.f));
-        pointLight.transform.translation = glm::vec3(rotateLight * glm::vec4(-1.f, -1.f, -1.f, 1.f));
-        gameObjects.emplace(pointLight.getId(), std::move(pointLight));
+        auto& transform = scene.getRegistry().get<TransformComponent>(pointLight);
+        transform.translation = glm::vec3(rotateLight * glm::vec4(-1.f, -1.f, -1.f, 1.f));
+ 
+        auto& light = scene.getRegistry().get<PointLightComponent>(pointLight);
     }
 }
+
 
 
 void FirstApp::renderUI() {

@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Systems/Camera.hpp"
-#include "Components/Game_Object.hpp"
+//#include "Components/Game_Object.hpp"
+#include <entt.hpp>
 
 // Lib
 #include <vulkan/vulkan.h>
@@ -30,7 +31,7 @@ struct FrameInfo {
     Camera& camera;
 
     VkDescriptorSet globalDescriptorSet;
-    GameObject::Map &gameObjects;
+    entt::registry& registry;
 };
 
 

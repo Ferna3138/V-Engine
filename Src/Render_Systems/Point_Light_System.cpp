@@ -64,40 +64,51 @@ void PointLightSystem::createPipeline(VkRenderPass renderPass) {
 
 
 void PointLightSystem::update(FrameInfo &frameInfo, GlobalUbo &ubo) {
+    auto& registry = frameInfo.registry;
+
     auto rotateLight = glm::rotate(glm::mat4(1.f), frameInfo.frameTime, glm::vec3(0.f, -1.f, 0.f));
-    
+
     int lightIndex = 0;
-    for(auto& kv : frameInfo.gameObjects){
-        auto& obj = kv.second;
-        if(obj.pointLight == nullptr) continue;
+
+    auto view = registry.view<TransformComponent, PointLightComponent>();
+    for (auto entity : view) {
+        auto& transform = registry.get<TransformComponent>(entity);
+        auto& pointLight = registry.get<PointLightComponent>(entity);
 
         assert(lightIndex < MAX_LIGHTS && "Exceeded maximum number of lights");
-        
-        // Update light position
-        obj.transform.translation = glm::vec3(rotateLight * glm::vec4(obj.transform.translation, 1.f));
 
-        // Copy to ubo
-        ubo.pointLights[lightIndex].position = glm::vec4(obj.transform.translation, 1.f);
-        ubo.pointLights[lightIndex].colour = glm::vec4(obj.colour, obj.pointLight->lightIntensity);
-        lightIndex += 1;
+        // Rotate light position around Y axis
+        transform.translation = glm::vec3(rotateLight * glm::vec4(transform.translation, 1.f));
+
+        // Fill UBO
+        ubo.pointLights[lightIndex].position = glm::vec4(transform.translation, 1.f);
+        ubo.pointLights[lightIndex].colour = glm::vec4(1.f, 1.f, 1.f, pointLight.lightIntensity);  // default white
+
+        ++lightIndex;
     }
+
     ubo.numLights = lightIndex;
 }
 
 
 void PointLightSystem::render(FrameInfo &frameInfo) {
-    // Sort lights
-    std::map<float, GameObject::id_t> sortedLights;
-    for(auto& kv : frameInfo.gameObjects){ 
-        auto& obj = kv.second;
-        if(obj.pointLight == nullptr) continue;
+    auto& registry = frameInfo.registry;
 
-        auto offset = frameInfo.camera.getPosition() - obj.transform.translation;
-        float disSquared = glm::dot(offset, offset);
-        sortedLights[disSquared] = obj.getId();
+    // Sort lights by distance to camera (farthest to closest)
+    std::map<float, entt::entity> sortedLights;
+
+    auto view = registry.view<TransformComponent, PointLightComponent>();
+    for (auto entity : view) {
+        const auto& transform = view.get<TransformComponent>(entity);
+        const auto& pointLight = view.get<PointLightComponent>(entity);
+
+        glm::vec3 offset = frameInfo.camera.getPosition() - transform.translation;
+        float distanceSquared = glm::dot(offset, offset);
+
+        sortedLights[distanceSquared] = entity;
     }
 
-    pipeline->bind(frameInfo.commandBuffer);    
+    pipeline->bind(frameInfo.commandBuffer);
 
     vkCmdBindDescriptorSets(
         frameInfo.commandBuffer,
@@ -109,16 +120,19 @@ void PointLightSystem::render(FrameInfo &frameInfo) {
         nullptr
     );
 
-
-    // Iterate through sorted lights in reverse order
-    for(auto it = sortedLights.rbegin(); it != sortedLights.rend(); ++it) {
-        auto& obj = frameInfo.gameObjects.at(it->second);
-
+    for (auto it = sortedLights.rbegin(); it != sortedLights.rend(); ++it) {
+        entt::entity entity = it->second;
+        const auto& transform = registry.get<TransformComponent>(entity);
+        const auto& pointLight = registry.get<PointLightComponent>(entity);
 
         PointLightPushConstants push{};
-        push.position = glm::vec4(obj.transform.translation, 1.f);
-        push.colour = glm::vec4(obj.colour, obj.pointLight->lightIntensity);
-        push.radius = obj.transform.scale.x; // Assuming uniform scale for point light radius
+        push.position = glm::vec4(transform.translation, 1.f);
+
+        // You only store intensity, so pick a default color
+        push.colour = glm::vec4(1.f, 1.f, 1.f, pointLight.lightIntensity);  // white light with intensity
+
+        // You may want to store radius later in PointLightComponent
+        push.radius = transform.scale.x;  // uniform scale assumed
 
         vkCmdPushConstants(
             frameInfo.commandBuffer,
@@ -128,8 +142,7 @@ void PointLightSystem::render(FrameInfo &frameInfo) {
             sizeof(PointLightPushConstants),
             &push
         );
+
         vkCmdDraw(frameInfo.commandBuffer, 6, 1, 0, 0);
     }
-
-
 }

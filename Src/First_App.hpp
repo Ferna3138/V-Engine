@@ -2,10 +2,10 @@
 #include "Renderer/Device.hpp"
 #include "Renderer/Pipeline.hpp"
 #include "Renderer/Window.hpp"
-#include "Components/Game_Object.hpp"
 #include "Renderer/Renderer.hpp"
 #include "Renderer/Descriptors.hpp"
 
+#include "Scene.hpp"
 
 // ImGui
 #define IMGUI_ENABLE_DOCKING
@@ -20,8 +20,8 @@
 
 class FirstApp {
     public:
-        static constexpr int WIDTH = 800;
-        static constexpr int HEIGHT = 600;
+        static constexpr int WIDTH = 1200;
+        static constexpr int HEIGHT = 800;
 
         FirstApp();
         ~FirstApp();
@@ -31,7 +31,6 @@ class FirstApp {
 
         void run();
 
-        unsigned int make_entity();
 
     private:
         // ImGui
@@ -42,7 +41,6 @@ class FirstApp {
 
         void loadGameObjects();
 
-        unsigned int entity_count = 0;
 
         Window window{WIDTH, HEIGHT, "V-Engine"};
         Device device{window};
@@ -51,6 +49,5 @@ class FirstApp {
         // Note: Order of declarations matters
         std::unique_ptr<DescriptorPool> globalPool;
 
-        GameObject::Map gameObjects;
-
+        Scene scene;
 };

@@ -76,14 +76,17 @@ void SimpleRenderSystem::renderGameObjects(FrameInfo &frameInfo) {
         nullptr
     );
 
-    for (auto &kv : frameInfo.gameObjects) {        
-        auto& obj = kv.second;
-        
-        if(obj.model == nullptr) continue;
+    
+    auto view = frameInfo.registry.view<TransformComponent, ModelComponent>();
+    for (auto entity : view) {
+        auto& transform = view.get<TransformComponent>(entity);
+        auto& modelComp = view.get<ModelComponent>(entity);
+
+        if (!modelComp.model) continue;
 
         SimplePushConstantData push{};
-        push.modelMatrix = obj.transform.mat4();
-        push.normalMatrix = obj.transform.normalMatrix();
+        push.modelMatrix = transform.mat4();
+        push.normalMatrix = transform.normalMatrix();
 
         vkCmdPushConstants(frameInfo.commandBuffer,
                            pipelineLayout,
@@ -91,8 +94,9 @@ void SimpleRenderSystem::renderGameObjects(FrameInfo &frameInfo) {
                            0,
                            sizeof(SimplePushConstantData),
                            &push);
-        obj.model->bind(frameInfo.commandBuffer);
-        obj.model->draw(frameInfo.commandBuffer); 
+
+        modelComp.model->bind(frameInfo.commandBuffer);
+        modelComp.model->draw(frameInfo.commandBuffer); 
     }
 }
 
