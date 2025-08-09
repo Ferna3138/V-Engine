@@ -29,27 +29,43 @@ void main() {
     vec3 cameraPosWorld = ubo.invView[3].xyz;
     vec3 viewDirection = normalize(cameraPosWorld - fragPosWorld);
 
+    // Material parameters for PBR
+    float roughness = 0.3; // tweakable or passed as uniform
+    float metallic = 0.4;  // tweakable or passed as uniform
+    vec3 albedo = fragColour;
+    vec3 F0 = mix(vec3(0.04), albedo, metallic);
 
-    for(int i = 0; i < ubo.numLights; i++) {
+    for (int i = 0; i < ubo.numLights; i++) {
         PointLight light = ubo.pointLights[i];
-        vec3 directionToLight = light.position.xyz - fragPosWorld;
-        float attenuation = 1.0 / dot(directionToLight, directionToLight);
-        directionToLight = normalize(directionToLight);
+        vec3 L = light.position.xyz - fragPosWorld;
+        float attenuation = 1.0 / dot(L, L);
+        L = normalize(L);
 
-        float cosAngIncidence = max(dot(surfaceNormal, directionToLight), 0);
-        vec3 intensity = light.colour.xyz * light.colour.w * attenuation * 5;
+        vec3 H = normalize(viewDirection + L);
 
-        diffuseLight += intensity * cosAngIncidence;
+        float NdotL = max(dot(surfaceNormal, L), 0.0);
 
+        vec3 radiance = light.colour.xyz * light.colour.w * attenuation * 5.0;
 
-        // Specular Lighting
-        vec3 halfAngle = normalize(directionToLight + viewDirection);
-        float blinnTerm = dot(surfaceNormal, halfAngle);
-        blinnTerm = clamp(blinnTerm, 0, 1);
-        blinnTerm = pow(blinnTerm, 128.0); // Shininess factor
-        specularLight += intensity * blinnTerm; 
+        // Cook–Torrance BRDF with GGX
+        float NDF = DistributionGGX(surfaceNormal, H, roughness);
+        float G   = GeometrySmith(surfaceNormal, viewDirection, L, roughness);
+        vec3  F   = FresnelSchlick(max(dot(H, viewDirection), 0.0), F0);
+
+        vec3 numerator   = NDF * G * F;
+        float denominator = 4.0 * max(dot(surfaceNormal, viewDirection), 0.0) * NdotL + 0.0001;
+        vec3 specular = numerator / denominator;
+
+        // Energy conservation
+        vec3 kS = F;
+        vec3 kD = vec3(1.0) - kS;
+        kD *= 1.0 - metallic;
+
+        // Accumulate lighting
+        diffuseLight  += kD * radiance * NdotL;
+        specularLight += specular * radiance * NdotL;
     }
-    vec3 imageColour = texture(image, fragUV).rgb;
 
-    outColour = vec4((diffuseLight * fragColour + specularLight * fragColour) * imageColour, 1.0);
+    vec3 imageColour = texture(image, fragUV).rgb;
+    outColour = vec4((diffuseLight * albedo + specularLight) * imageColour, 1.0);
 }
