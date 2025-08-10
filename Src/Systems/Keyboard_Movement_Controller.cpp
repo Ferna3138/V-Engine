@@ -15,12 +15,48 @@ void KeyboardMovementController::mouseMove( GLFWwindow *window, float dt, entt::
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
 
+    // Detect right button "just pressed"
+    static bool wasRightButtonPressed = false;
+    bool isRightButtonPressed = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+    if (isRightButtonPressed && !wasRightButtonPressed) {
+        // Right button just pressed, reset lastX/Y to avoid jump
+        lastX = xpos;
+        lastY = ypos;
+    }
+    wasRightButtonPressed = isRightButtonPressed;
+
+
     if (leftButtonPressed) {
         float xoffset = xpos - lastX;
         float yoffset = ypos - lastY;
 
         transform.rotation.y -= xoffset * lookSpeed * dt * 0.05f;
         transform.rotation.x += yoffset * lookSpeed * dt * 0.05f;
+    }
+
+
+    // Right button: pan camera (move in X and Y plane)
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+        float xoffset = xpos - lastX;
+        float yoffset = ypos - lastY;
+
+        float yaw = transform.rotation.y;
+        glm::vec3 rightDir{cos(yaw), 0.f, -sin(yaw)};
+        glm::vec3 upDir{0.f, 1.f, 0.f};
+
+        transform.translation -= rightDir * (xoffset * moveSpeed * dt * 0.1f);
+        transform.translation -= upDir * (yoffset * moveSpeed * dt * 0.1f);
+    }
+
+    // Scroll wheel
+    if (scrollOffset != 0.f) {
+        float zoomAmount = scrollOffset * moveSpeed * dt;
+
+        float yaw = transform.rotation.y;
+        glm::vec3 forwardDir{sin(yaw), 0.f, cos(yaw)};
+        transform.translation += forwardDir * zoomAmount;
+
+        scrollOffset = 0.f;
     }
 
     lastX = xpos;
@@ -30,10 +66,6 @@ void KeyboardMovementController::mouseMove( GLFWwindow *window, float dt, entt::
         leftButtonPressed = true;
     else
         leftButtonPressed = false;
-
-
-    
-    
 }
 
 
