@@ -20,7 +20,6 @@ struct ModelComponent{
 
 // Lighting
 struct PointLightComponent {
-    float lightIntensity = 1.0f; // Intensity of the light
     glm::vec4 colour;
     float radius;
 };

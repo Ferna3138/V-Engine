@@ -62,6 +62,5 @@ GameObject GameObject::makePointLight(float intensity, float radius, glm::vec3 c
     gameObj.colour = colour;
     gameObj.transform.scale.x = radius;
     gameObj.pointLight = std::make_unique<PointLightComponent>();
-    gameObj.pointLight->lightIntensity = intensity;
     return gameObj;
 }

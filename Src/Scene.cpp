@@ -12,9 +12,9 @@ entt::entity Scene::createEntity(const std::string& name) {
     return entity;
 }
 
-entt::entity Scene::createPointLight(float intensity) {
+entt::entity Scene::createPointLight(glm::vec4 colour, float radius) {
     auto entity = createEntity("PointLight");
-    registry.emplace<PointLightComponent>(entity, PointLightComponent{intensity});
+    registry.emplace<PointLightComponent>(entity, PointLightComponent{glm::vec4(1.0f), 1.0f});
     return entity;
 }
 

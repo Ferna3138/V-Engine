@@ -13,7 +13,6 @@
 #include <glm/gtc/constants.hpp>
 
 
-
 PointLightSystem::PointLightSystem(Device& _device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout) : device{_device} {
     createPipelineLayout(globalSetLayout);
     createPipeline(renderPass);
@@ -27,7 +26,6 @@ void PointLightSystem::createPipelineLayout(VkDescriptorSetLayout globalSetLayou
     pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     pushConstantRange.offset = 0;
     pushConstantRange.size = sizeof(PointLightPushConstants);
-    
 
     std::vector<VkDescriptorSetLayout> descriptorSetLayouts = {globalSetLayout};
 
@@ -65,10 +63,9 @@ void PointLightSystem::createPipeline(VkRenderPass renderPass) {
 
 void PointLightSystem::update(FrameInfo &frameInfo, GlobalUbo &ubo) {
     auto& registry = frameInfo.registry;
-
-    auto rotateLight = glm::rotate(glm::mat4(1.f), frameInfo.frameTime, glm::vec3(0.f, -1.f, 0.f));
-
     int lightIndex = 0;
+
+    //auto rotateLight = glm::rotate(glm::mat4(1.f), frameInfo.frameTime, glm::vec3(0.f, -1.f, 0.f));
 
     auto view = registry.view<TransformComponent, PointLightComponent>();
     for (auto entity : view) {
@@ -76,13 +73,12 @@ void PointLightSystem::update(FrameInfo &frameInfo, GlobalUbo &ubo) {
         auto& pointLight = registry.get<PointLightComponent>(entity);
 
         assert(lightIndex < MAX_LIGHTS && "Exceeded maximum number of lights");
-
+        
         // Rotate light position around Y axis
-        transform.translation = glm::vec3(rotateLight * glm::vec4(transform.translation, 1.f));
-
-        // Fill UBO
-        ubo.pointLights[lightIndex].position = glm::vec4(transform.translation, 1.f);
-        ubo.pointLights[lightIndex].colour = glm::vec4(1.f, 1.f, 1.f, pointLight.lightIntensity);  // default white
+        //transform.translation = glm::vec3(rotateLight * glm::vec4(transform.translation, 1.f));
+        
+        ubo.pointLights[lightIndex].position = glm::vec4(transform.translation, pointLight.radius);
+        ubo.pointLights[lightIndex].colour   = pointLight.colour; // now full vec4, alpha = intensity
 
         ++lightIndex;
     }
@@ -91,21 +87,16 @@ void PointLightSystem::update(FrameInfo &frameInfo, GlobalUbo &ubo) {
 }
 
 
+
 void PointLightSystem::render(FrameInfo &frameInfo) {
     auto& registry = frameInfo.registry;
-
-    // Sort lights by distance to camera (farthest to closest)
     std::map<float, entt::entity> sortedLights;
 
     auto view = registry.view<TransformComponent, PointLightComponent>();
     for (auto entity : view) {
         const auto& transform = view.get<TransformComponent>(entity);
-        const auto& pointLight = view.get<PointLightComponent>(entity);
-
         glm::vec3 offset = frameInfo.camera.getPosition() - transform.translation;
-        float distanceSquared = glm::dot(offset, offset);
-
-        sortedLights[distanceSquared] = entity;
+        sortedLights[glm::dot(offset, offset)] = entity;
     }
 
     pipeline->bind(frameInfo.commandBuffer);
@@ -122,17 +113,13 @@ void PointLightSystem::render(FrameInfo &frameInfo) {
 
     for (auto it = sortedLights.rbegin(); it != sortedLights.rend(); ++it) {
         entt::entity entity = it->second;
-        const auto& transform = registry.get<TransformComponent>(entity);
+        const auto& transform  = registry.get<TransformComponent>(entity);
         const auto& pointLight = registry.get<PointLightComponent>(entity);
 
         PointLightPushConstants push{};
         push.position = glm::vec4(transform.translation, 1.f);
-
-        // You only store intensity, so pick a default color
-        push.colour = glm::vec4(1.f, 1.f, 1.f, pointLight.lightIntensity);  // white light with intensity
-
-        // You may want to store radius later in PointLightComponent
-        push.radius = transform.scale.x;  // uniform scale assumed
+        push.colour   = pointLight.colour; // vec4, alpha = intensity
+        push.radius   = pointLight.radius; // use actual radius
 
         vkCmdPushConstants(
             frameInfo.commandBuffer,

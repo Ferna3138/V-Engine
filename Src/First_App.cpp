@@ -42,8 +42,6 @@ FirstApp::~FirstApp() {
 }
 
 
-
-
 void FirstApp::run() {
 
     std::vector<std::unique_ptr<Buffer>> uboBuffers(SwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -183,6 +181,8 @@ void FirstApp::loadGameObjects() {
         {0.933f, 0.910f, 0.667f}   // Pale warm white (keylight / candle)
     };
     
+
+    /*
     for (int i = 0; i < lightColors.size(); i++) {
         entt::entity pointLight = scene.createPointLight(0.2f);
         auto rotateLight = glm::rotate(glm::mat4(1.f), (i * glm::two_pi<float>() / lightColors.size()), glm::vec3(0.f, -1.f, 0.f));
@@ -190,7 +190,12 @@ void FirstApp::loadGameObjects() {
         transform.translation = glm::vec3(rotateLight * glm::vec4(-1.f, -1.f, -1.f, 1.f));
  
         auto& light = scene.getRegistry().get<PointLightComponent>(pointLight);
-    }
+    }*/
+
+    mainLight = scene.createPointLight(glm::vec4(1.0f, 1.0f, 1.0f, 10.0f), 0.2f);
+    auto& lightTransform = scene.getRegistry().get<TransformComponent>(mainLight);
+    lightTransform.translation = {0.0f, -5.0f, 0.0f};
+
 }
 
 
@@ -229,8 +234,24 @@ void FirstApp::renderUI() {
     ImGui::Checkbox("Visualise Point Lights", &visualisePointLights);
     ImGui::End();
 
+
+    if (mainLight != entt::null && scene.getRegistry().valid(mainLight)) {
+        auto& transform = scene.getRegistry().get<TransformComponent>(mainLight);
+        auto& pointLightComp = scene.getRegistry().get<PointLightComponent>(mainLight);
+
+        ImGui::Begin("Control Panel");
+        ImGui::Text("Light Controls");
+        ImGui::SliderFloat3("Position", &transform.translation.x, -10.0f, 10.0f);
+        ImGui::SliderFloat("Intensity", &pointLightComp.colour.w, 0.0f, 50.0f);
+        
+
+        ImGui::End();
+    }
+
+
     ImGui::Render();
 }
+
 void FirstApp::setUpImgui() {
     VkDescriptorPoolSize pool_sizes[] = {
         {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},

@@ -50,4 +50,6 @@ class FirstApp {
         std::unique_ptr<DescriptorPool> globalPool;
 
         Scene scene;
+
+        entt::entity mainLight{entt::null};
 };
