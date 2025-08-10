@@ -15,6 +15,13 @@ void KeyboardMovementController::mouseMove( GLFWwindow *window, float dt, entt::
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
 
+    if (ImGui::GetIO().WantCaptureMouse) {
+        // ImGui is interacting with the mouse; skip camera movement
+        lastX = xpos;
+        lastY = ypos;
+        return;
+    }
+
     // Detect right button "just pressed"
     static bool wasRightButtonPressed = false;
     bool isRightButtonPressed = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
