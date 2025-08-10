@@ -229,16 +229,24 @@ void FirstApp::renderUI() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
     ImGui::Begin("DockSpace", nullptr, window_flags);
-    ImGui::PopStyleVar(2);
 
+    
+    ImGui::PopStyleVar(2);
+    
     ImGuiID dockspace_id = ImGui::GetID("MyDockspace");
     ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
-
+    
     ImGui::End();
-
+    
     // === Control Panel ===
-    ImGui::Begin("Control Panel");
 
+    ImGui::Begin("Control Panel");
+    
+    float fps = ImGui::GetIO().Framerate;
+    ImGui::Text("FPS: %.1f (%.3f ms/frame)", fps, 1000.0f / fps);
+
+    ImGui::Separator();
+    
     ImGui::Checkbox("Visualise Point Lights", &visualisePointLights);
 
     // Cache lights in a list
@@ -290,6 +298,7 @@ void FirstApp::renderUI() {
     } else {
         ImGui::Text("No point lights in scene.");
     }
+
 
     ImGui::End();
 
