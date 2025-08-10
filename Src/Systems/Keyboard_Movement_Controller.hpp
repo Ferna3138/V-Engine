@@ -3,6 +3,9 @@
 #include "Components/Game_Object.hpp"
 #include "Renderer/Window.hpp"
 
+#include <entt.hpp>
+#include "Components/Components.hpp"
+
 class KeyboardMovementController {
 public:
     struct KeyMappings {
@@ -18,8 +21,8 @@ public:
         int lookDown = GLFW_KEY_DOWN;
     };
 
-    void moveInPlaneXZ(GLFWwindow *window, float dt, GameObject &gameObject);
-    void mouseMove(GLFWwindow *window, float dt, GameObject &gameObject);
+    void moveInPlaneXZ(GLFWwindow *window, float dt, entt::registry &registry, entt::entity entity);
+    void mouseMove(GLFWwindow *window, float dt, entt::registry &registry, entt::entity entity);
 
     void bindScrollCallback(GLFWwindow *window);
 

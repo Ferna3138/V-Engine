@@ -81,16 +81,23 @@ void FirstApp::run() {
     SimpleRenderSystem simpleRenderSystem{device, renderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
     PointLightSystem pointLightSystem{device, renderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
 
-    
-
     setUpImgui();
 
-    Camera camera{};
-    camera.setViewTarget(glm::vec3(0.f, 0.f, -2.f), glm::vec3(0.f, 0.f, 2.5f));
-
-    auto viewerObject = GameObject::createGameObject();
-    viewerObject.transform.translation.z = 0.5f;
+   
+   entt::entity cameraEntity = scene.getRegistry().create();
+   auto &cameraComponent = scene.getRegistry().emplace<CameraComponent>(cameraEntity);
+   auto &cameraTransform = scene.getRegistry().emplace<TransformComponent>(cameraEntity);
+   
+   cameraComponent.camera.setViewTarget(
+       glm::vec3(0.f, 0.f, -2.f),
+       glm::vec3(0.f, 0.f,  2.5f)
+    );
+    
+    cameraTransform.translation.z = 0.5f;
     KeyboardMovementController cameraController{};
+
+
+
     auto currentTime = std::chrono::high_resolution_clock::now();
 
     while (!window.shouldClose()) {
@@ -100,16 +107,20 @@ void FirstApp::run() {
         float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
         currentTime = newTime;
 
-        cameraController.moveInPlaneXZ(window.getGLFWwindow(), frameTime, viewerObject);
+        //cameraController.moveInPlaneXZ(window.getGLFWwindow(), frameTime, viewerObject);
         
+        cameraController.moveInPlaneXZ(window.getGLFWwindow(), frameTime, scene.getRegistry(), cameraEntity);
+        cameraController.mouseMove(window.getGLFWwindow(), frameTime, scene.getRegistry(), cameraEntity);
+
         // Handle mouse movement
-        cameraController.mouseMove(window.getGLFWwindow(), frameTime, viewerObject);
+        //cameraController.mouseMove(window.getGLFWwindow(), frameTime, viewerObject);
         cameraController.bindScrollCallback(window.getGLFWwindow());
 
-        camera.setViewYXZ(viewerObject.transform.translation, viewerObject.transform.rotation);
+        auto &camTransform = scene.getRegistry().get<TransformComponent>(cameraEntity);
+        cameraComponent.camera.setViewYXZ(camTransform.translation, camTransform.rotation);
 
         float aspect = renderer.getAspectRatio();
-        camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
+        cameraComponent.camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
 
         if (auto commandBuffer = renderer.beginFrame()) {
             int frameIndex = renderer.getFrameIndex();
@@ -118,16 +129,16 @@ void FirstApp::run() {
                 frameIndex,
                 frameTime,
                 commandBuffer,
-                camera,
+                cameraComponent.camera,
                 globalDescriptorSets[frameIndex],
                 scene.getRegistry()
             };
 
             // Update
             GlobalUbo ubo{};
-            ubo.projection = camera.getProjection();
-            ubo.view = camera.getView();
-            ubo.inverseView = camera.getInverseView();
+            ubo.projection = cameraComponent.camera.getProjection();
+            ubo.view = cameraComponent.camera.getView();
+            ubo.inverseView = cameraComponent.camera.getInverseView();
             
             pointLightSystem.update(frameInfo, ubo);
             uboBuffers[frameIndex]->writeToBuffer(&ubo);

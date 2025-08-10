@@ -3,6 +3,7 @@
 #include "Model.hpp"
 #include <memory>
 #include <glm/glm.hpp>
+#include "Systems/Camera.hpp"
 
 struct TransformComponent{
         glm::vec3 translation{};
@@ -23,3 +24,6 @@ struct PointLightComponent {
     float radius;
 };
 
+struct CameraComponent {
+    Camera camera;
+};
