@@ -192,9 +192,19 @@ void FirstApp::loadGameObjects() {
         auto& light = scene.getRegistry().get<PointLightComponent>(pointLight);
     }*/
 
-    mainLight = scene.createPointLight(glm::vec4(1.0f, 1.0f, 1.0f, 10.0f), 0.2f);
-    auto& lightTransform = scene.getRegistry().get<TransformComponent>(mainLight);
-    lightTransform.translation = {0.0f, -5.0f, 0.0f};
+//    mainLight = scene.createPointLight(glm::vec4(1.0f, 1.0f, 1.0f, 10.0f), 0.2f);
+//    auto& lightTransform = scene.getRegistry().get<TransformComponent>(mainLight);
+//    lightTransform.translation = {0.0f, -5.0f, 0.0f};
+
+
+    for (size_t i = 0; i < lightColors.size(); i++) {
+        entt::entity light = scene.createPointLight(
+            glm::vec4(lightColors[i], 3.0f), // RGB + intensity in .w
+            0.2f
+        );
+        auto& lightTransform = scene.getRegistry().get<TransformComponent>(light);
+        lightTransform.translation = {static_cast<float>(i) * 2.0f, -5.0f, 0.0f};
+    }
 
 }
 
@@ -228,25 +238,62 @@ void FirstApp::renderUI() {
 
     ImGui::End();
 
-    // Draw  custom ImGui content
+    // === Control Panel ===
     ImGui::Begin("Control Panel");
-    ImGui::Text("Hello from the left!");
+
     ImGui::Checkbox("Visualise Point Lights", &visualisePointLights);
-    ImGui::End();
 
+    // Cache lights in a list
+    static int selectedLightIndex = 0;
+    auto view = scene.getRegistry().view<TransformComponent, PointLightComponent>();
+    
+    std::size_t count = static_cast<std::size_t>(std::distance(view.begin(), view.end()));
 
-    if (mainLight != entt::null && scene.getRegistry().valid(mainLight)) {
-        auto& transform = scene.getRegistry().get<TransformComponent>(mainLight);
-        auto& pointLightComp = scene.getRegistry().get<PointLightComponent>(mainLight);
+    std::vector<entt::entity> lightEntities;
+    lightEntities.clear();
+    lightEntities.reserve(count);
 
-        ImGui::Begin("Control Panel");
-        ImGui::Text("Light Controls");
-        ImGui::SliderFloat3("Position", &transform.translation.x, -10.0f, 10.0f);
-        ImGui::SliderFloat("Intensity", &pointLightComp.colour.w, 0.0f, 50.0f);
-        
-
-        ImGui::End();
+    for (auto entity : view) {
+        lightEntities.push_back(entity);
     }
+
+    if (!lightEntities.empty()) {
+        // Keep index valid if lights change
+        if (selectedLightIndex >= static_cast<int>(lightEntities.size())) {
+            selectedLightIndex = static_cast<int>(lightEntities.size()) - 1;
+        }
+
+        // Light selection combo
+        std::string previewName = "Light " + std::to_string(selectedLightIndex);
+        if (ImGui::BeginCombo("Select Light", previewName.c_str())) {
+            for (int i = 0; i < static_cast<int>(lightEntities.size()); i++) {
+                bool isSelected = (selectedLightIndex == i);
+                std::string name = "Light " + std::to_string(i);
+                if (ImGui::Selectable(name.c_str(), isSelected)) {
+                    selectedLightIndex = i;
+                }
+                if (isSelected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        // Draw controls for selected light
+        entt::entity selectedEntity = lightEntities[selectedLightIndex];
+        auto &transform = view.get<TransformComponent>(selectedEntity);
+        auto &light = view.get<PointLightComponent>(selectedEntity);
+
+        ImGui::Separator();
+        ImGui::Text("Editing Light %d", selectedLightIndex);
+        ImGui::SliderFloat3("Position", &transform.translation.x, -10.0f, 10.0f);
+        ImGui::SliderFloat("Intensity", &light.colour.w, 0.0f, 50.0f);
+        ImGui::ColorEdit3("Color", &light.colour.x);
+    } else {
+        ImGui::Text("No point lights in scene.");
+    }
+
+    ImGui::End();
 
 
     ImGui::Render();
