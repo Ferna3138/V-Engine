@@ -33,33 +33,34 @@ struct PipelineConfigInfo {
 
 class Pipeline {
     public:
-    Pipeline(
-        Device& device,
-        const std::string& vertFilepath,
-        const std::string& fragFilepath,
-        const PipelineConfigInfo& configInfo);
-    ~Pipeline();
+        Pipeline(
+            Device& device,
+            const std::string& vertFilepath,
+            const std::string& fragFilepath,
+            const PipelineConfigInfo& configInfo);
 
-    Pipeline(const Pipeline&) = delete;
-    Pipeline& operator=(const Pipeline&) = delete;
+        ~Pipeline();
 
-    void bind(VkCommandBuffer commandBuffer);
+        Pipeline(const Pipeline&) = delete;
+        Pipeline& operator=(const Pipeline&) = delete;
 
-    static void defaultPipelineConfigInfo(PipelineConfigInfo& configInfo);
-    static void enableAlphaBlending(PipelineConfigInfo& configInfo);
+        void bind(VkCommandBuffer commandBuffer);
+
+        static void defaultPipelineConfigInfo(PipelineConfigInfo& configInfo);
+        static void enableAlphaBlending(PipelineConfigInfo& configInfo);
 
     private:
-    static std::vector<char> readFile(const std::string& filepath);
+        static std::vector<char> readFile(const std::string& filepath);
 
-    void createGraphicsPipeline(
-        const std::string& vertFilepath,
-        const std::string& fragFilepath,
-        const PipelineConfigInfo& configInfo);
+        void createGraphicsPipeline(
+            const std::string& vertFilepath,
+            const std::string& fragFilepath,
+            const PipelineConfigInfo& configInfo);
 
-    void createShaderModule(const std::vector<char>& code, VkShaderModule* shaderModule);
+        void createShaderModule(const std::vector<char>& code, VkShaderModule* shaderModule);
 
-    Device& device;
-    VkPipeline graphicsPipeline;
-    VkShaderModule vertShaderModule;
-    VkShaderModule fragShaderModule;
+        Device& device;
+        VkPipeline graphicsPipeline;
+        VkShaderModule vertShaderModule;
+        VkShaderModule fragShaderModule;
 };

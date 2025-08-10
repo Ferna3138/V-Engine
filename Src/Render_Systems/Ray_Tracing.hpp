@@ -2,7 +2,7 @@
 #include "Systems/Camera.hpp"
 #include "Renderer/Device.hpp"
 #include "Renderer/Pipeline.hpp"
-#include "Components/Game_Object.hpp"
+
 #include "Frame_Info.hpp"
 
 class RayTracing{

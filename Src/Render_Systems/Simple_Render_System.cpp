@@ -85,8 +85,8 @@ void SimpleRenderSystem::renderGameObjects(FrameInfo &frameInfo) {
         if (!modelComp.model) continue;
 
         SimplePushConstantData push{};
-        push.modelMatrix = transform.mat4();
-        push.normalMatrix = transform.normalMatrix();
+        push.modelMatrix = toMat4(transform);
+        push.normalMatrix = toNormalMatrix(transform);
 
         vkCmdPushConstants(frameInfo.commandBuffer,
                            pipelineLayout,
