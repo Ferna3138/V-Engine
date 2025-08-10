@@ -167,9 +167,9 @@ void FirstApp::loadGameObjects() {
 
 
     entt::entity sponza = scene.createModelEntity(model);
-    auto& transform = scene.getRegistry().get<TransformComponent>(sponza);
-    transform.translation = {0.0f, 2.0f, 0.0f};
-    transform.scale = glm::vec3{-0.01f, -0.01f, -0.01f};
+    auto& sponzaTransform = scene.getRegistry().get<TransformComponent>(sponza);
+    sponzaTransform.translation = {0.0f, 2.0f, 0.0f};
+    sponzaTransform.scale = glm::vec3{-0.01f, -0.01f, -0.01f};
 
 
     std::vector<glm::vec3> lightColors{
@@ -180,30 +180,17 @@ void FirstApp::loadGameObjects() {
         {0.616f, 0.153f, 0.690f},  // Lavender (magic/night light)
         {0.933f, 0.910f, 0.667f}   // Pale warm white (keylight / candle)
     };
-    
-
-    /*
-    for (int i = 0; i < lightColors.size(); i++) {
-        entt::entity pointLight = scene.createPointLight(0.2f);
-        auto rotateLight = glm::rotate(glm::mat4(1.f), (i * glm::two_pi<float>() / lightColors.size()), glm::vec3(0.f, -1.f, 0.f));
-        auto& transform = scene.getRegistry().get<TransformComponent>(pointLight);
-        transform.translation = glm::vec3(rotateLight * glm::vec4(-1.f, -1.f, -1.f, 1.f));
- 
-        auto& light = scene.getRegistry().get<PointLightComponent>(pointLight);
-    }*/
-
-//    mainLight = scene.createPointLight(glm::vec4(1.0f, 1.0f, 1.0f, 10.0f), 0.2f);
-//    auto& lightTransform = scene.getRegistry().get<TransformComponent>(mainLight);
-//    lightTransform.translation = {0.0f, -5.0f, 0.0f};
-
 
     for (size_t i = 0; i < lightColors.size(); i++) {
         entt::entity light = scene.createPointLight(
             glm::vec4(lightColors[i], 3.0f), // RGB + intensity in .w
             0.2f
         );
+        auto rotateLight = glm::rotate(glm::mat4(1.f), (i * glm::two_pi<float>() / lightColors.size()), glm::vec3(0.f, -1.f, 0.f));
+
         auto& lightTransform = scene.getRegistry().get<TransformComponent>(light);
-        lightTransform.translation = {static_cast<float>(i) * 2.0f, -5.0f, 0.0f};
+        //lightTransform.translation = {static_cast<float>(i) * 2.0f, -5.0f, 0.0f};
+        lightTransform.translation = glm::vec3(rotateLight * glm::vec4(-1.f, -1.f, -1.f, 1.f));
     }
 
 }

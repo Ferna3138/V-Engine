@@ -51,5 +51,4 @@ class FirstApp {
 
         Scene scene;
 
-        entt::entity mainLight{entt::null};
 };

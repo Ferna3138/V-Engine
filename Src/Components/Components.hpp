@@ -17,9 +17,9 @@ struct ModelComponent{
     std::shared_ptr<Model> model{};
 };
 
-
 // Lighting
 struct PointLightComponent {
     glm::vec4 colour;
     float radius;
 };
+
