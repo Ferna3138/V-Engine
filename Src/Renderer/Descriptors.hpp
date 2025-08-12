@@ -18,15 +18,19 @@ class DescriptorSetLayout {
                     uint32_t binding,
                     VkDescriptorType descriptorType,
                     VkShaderStageFlags stageFlags,
-                    uint32_t count = 1);
+                    uint32_t count = 1,
+                    VkDescriptorBindingFlags bindingFlags = 0);
+
                 std::unique_ptr<DescriptorSetLayout> build() const;
 
             private:
                 Device &device;
                 std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> bindings{};
+                std::unordered_map<uint32_t, VkDescriptorBindingFlags> bindingFlags{};
+
         };
 
-        DescriptorSetLayout(Device &device, std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> bindings);
+        DescriptorSetLayout(Device &device, std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> bindings, std::unordered_map<uint32_t, VkDescriptorBindingFlags> bindingFlags);
         ~DescriptorSetLayout();
 
         DescriptorSetLayout(const DescriptorSetLayout &) = delete;
@@ -38,6 +42,8 @@ class DescriptorSetLayout {
         Device &device;
         VkDescriptorSetLayout descriptorSetLayout;
         std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> bindings;
+        std::unordered_map<uint32_t, VkDescriptorBindingFlags> bindingFlags;
+
 
         friend class DescriptorWriter;
     };
@@ -66,7 +72,7 @@ class DescriptorPool {
         DescriptorPool(const DescriptorPool &) = delete;
         DescriptorPool &operator=(const DescriptorPool &) = delete;
 
-        bool allocateDescriptor(const VkDescriptorSetLayout descriptorSetLayout, VkDescriptorSet &descriptor) const;
+        bool allocateDescriptor(const VkDescriptorSetLayout descriptorSetLayout, VkDescriptorSet &descriptor, uint32_t variableDescriptorCount = 0) const;
         void freeDescriptors(std::vector<VkDescriptorSet> &descriptors) const;
         void resetPool();
 
@@ -81,8 +87,8 @@ class DescriptorWriter {
     public:
         DescriptorWriter(DescriptorSetLayout &setLayout, DescriptorPool &pool);
 
-        DescriptorWriter &writeBuffer(uint32_t binding, VkDescriptorBufferInfo *bufferInfo);
-        DescriptorWriter &writeImage(uint32_t binding, VkDescriptorImageInfo *imageInfo);
+        DescriptorWriter &writeBuffer(uint32_t binding, VkDescriptorBufferInfo *bufferInfo, uint32_t descriptorCount = 1, uint32_t dstArrayElement = 0);
+        DescriptorWriter &writeImage(uint32_t binding, VkDescriptorImageInfo *imageInfo, uint32_t descriptorCount = 1, uint32_t dstArrayElement = 0);
 
         bool build(VkDescriptorSet &set);
         void overwrite(VkDescriptorSet &set);
