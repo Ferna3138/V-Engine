@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Renderer/Device.hpp"
+#include "Device.hpp"
 
 // std
 #include <string>

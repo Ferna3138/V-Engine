@@ -2,6 +2,7 @@
 
 #include <entt.hpp>
 #include "Components/Components.hpp"
+#include "Renderer/Texture_Manager.hpp"
 
 class Scene {
 public:
@@ -19,7 +20,12 @@ public:
 private:
     entt::registry registry;
 
+
     // Add helper system methods if needed
     void renderModels(VkCommandBuffer commandBuffer);
     void updateLights(float dt);
+
+    void createTextureImages(const std::vector<std::string> textureNames);
+
+
 };

@@ -5,7 +5,7 @@
 #include "Render_Systems/Simple_Render_System.hpp"
 #include "Render_Systems/Point_Light_System.hpp"
 #include "Renderer/Buffer.hpp"
-#include "Components/Texture.hpp"
+#include "Renderer/Texture.hpp"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -174,8 +174,6 @@ void FirstApp::run() {
 
 void FirstApp::loadGameObjects() {
     std::shared_ptr<Model> model = Model::createModelFromFile(device, "../Models/Sponza_obj/sponza.obj");
-
-
 
     entt::entity sponza = scene.createModelEntity(model);
     auto& sponzaTransform = scene.getRegistry().get<TransformComponent>(sponza);

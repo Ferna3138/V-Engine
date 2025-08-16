@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Device.hpp"
+#include "Model.hpp"
 
 #include <string>
 #include <vector>

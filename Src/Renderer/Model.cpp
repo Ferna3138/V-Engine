@@ -27,6 +27,11 @@ namespace std{
 Model::Model(Device& _device, const Model::Builder &builder) : device{_device} {
     createVertexBuffers(builder.vertices);
     createIndexBuffers(builder.indices);
+
+    materialsIndices = builder.materialsIndices; 
+    materials = builder.materials; 
+    textures = builder.textures; // texture file paths
+
 }
 
 Model::~Model() { }
@@ -93,11 +98,11 @@ void Model::createIndexBuffers(const std::vector<uint32_t> &indices) {
         indexCount,
         VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
- 
+
 
     device.copyBuffer(stagingBuffer.getBuffer(), indexBuffer->getBuffer(), bufferSize);
-
 }
+
 
 
 void Model::draw(VkCommandBuffer commandBuffer) {
@@ -137,63 +142,6 @@ std::vector<VkVertexInputAttributeDescription> Model::Vertex::getAttributeDescri
     return attributeDescriptions;
 }
 
-/*
-void Model::Builder::loadModel(const std::string &filepath) {
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string warn, err;
-
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filepath.c_str())) {
-        throw std::runtime_error("Failed to load model: " + filepath + "\n" + warn + err);
-    }
-
-    vertices.clear();
-    indices.clear();
-
-
-    std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-
-    for(const auto &shape : shapes){
-        for(const auto &index : shape.mesh.indices){
-            Vertex vertex{};
-            if(index.vertex_index >= 0) {
-                vertex.position = glm::vec3{
-                    attrib.vertices[3 * index.vertex_index + 0],
-                    attrib.vertices[3 * index.vertex_index + 1],
-                    attrib.vertices[3 * index.vertex_index + 2]
-                };
-                
-                vertex.colour = glm::vec3{
-                    attrib.colors[3 * index.vertex_index + 0],
-                    attrib.colors[3 * index.vertex_index + 1],
-                    attrib.colors[3 * index.vertex_index + 2]
-                };
-            }
-
-            if(index.normal_index >= 0) {
-                vertex.normal = glm::vec3(
-                    attrib.normals[3 * index.normal_index + 0],
-                    attrib.normals[3 * index.normal_index + 1],
-                    attrib.normals[3 * index.normal_index + 2]
-                );
-            }
-            if(index.texcoord_index >= 0) {
-                vertex.uv = glm::vec2(
-                    attrib.texcoords[2 * index.texcoord_index + 0],
-                    attrib.texcoords[2 * index.texcoord_index + 1]
-                );
-            }
-
-            if (uniqueVertices.count(vertex) == 0) {
-                uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-                vertices.push_back(vertex);
-            }
-            indices.push_back(uniqueVertices[vertex]);
-        }
-    }
-}
-*/
 
 
 void Model::Builder::loadModel(const std::string& filename) {
@@ -203,6 +151,10 @@ void Model::Builder::loadModel(const std::string& filename) {
         throw std::runtime_error("Failed to load model: " + filename);
         assert(reader.Valid());
     }
+
+    fs::path objPath = fs::absolute(filename);
+    fs::path objDir  = objPath.parent_path();
+    fs::path texDir  = objDir / "textures";
 
     // Collecting the material in the scene
     for(const auto& material : reader.GetMaterials()) {
@@ -216,10 +168,28 @@ void Model::Builder::loadModel(const std::string& filename) {
         m.ior           = material.ior;
         m.shininess     = material.shininess;
         m.illum         = material.illum;
-        if(!material.diffuse_texname.empty()) {
-        textures.push_back(material.diffuse_texname);
-        m.textureID = static_cast<int>(textures.size()) - 1;
-        }
+
+        auto resolveTexture = [&](const std::string& texName) -> int {
+            if (texName.empty()) return -1;
+            fs::path texFile = texDir / fs::path(texName).filename();
+            if (fs::exists(texFile)) {
+                textures.push_back(texFile.string());
+                return static_cast<int>(textures.size()) - 1;
+            } else {
+                // fallback: use raw path (might be absolute or relative)
+                textures.push_back(texName);
+                return static_cast<int>(textures.size()) - 1;
+            }
+        };
+
+        // Load diffuse texture
+        m.diffuseTexID = resolveTexture(material.diffuse_texname);
+
+        // Load specular map
+        m.specularTexID = resolveTexture(material.specular_texname);
+
+        // Load normal map (bump_texname is used for normal in OBJ/MTL)
+        m.normalTexID = resolveTexture(material.bump_texname);
 
         materials.emplace_back(m);
     }
@@ -261,22 +231,25 @@ void Model::Builder::loadModel(const std::string& filename) {
     }
 
     // Fixing material indices
-    for(auto& mi : materialsIndices) {
-        if(mi < 0 || mi > materials.size())
-        mi = 0;
+    for (auto& mi : materialsIndices) {
+        if (mi < 0 || mi >= static_cast<int>(materials.size())) {
+            mi = 0;
+        }
     }
 
-    // Compute normal when no normal were provided.
-    if(attrib.normals.empty()) {
-        for(size_t i = 0; i < indices.size(); i += 3) {
+    // Compute normals when none were provided.
+    if (attrib.normals.empty()) {
+        for (size_t i = 0; i < indices.size(); i += 3) {
             Vertex& v0 = vertices[indices[i + 0]];
             Vertex& v1 = vertices[indices[i + 1]];
             Vertex& v2 = vertices[indices[i + 2]];
 
-            glm::vec3 n = glm::normalize(glm::cross((v1.position - v0.position), (v2.position - v0.position)));
+            glm::vec3 n = glm::normalize(glm::cross((v1.position - v0.position),
+                                                    (v2.position - v0.position)));
             v0.normal = n;
             v1.normal = n;
             v2.normal = n;
         }
     }
 }
+

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Model.hpp"
+#include "Renderer/Model.hpp"
 #include <memory>
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -30,8 +30,23 @@ inline glm::mat3 toNormalMatrix(const TransformComponent &transform) {
     return glm::mat3(glm::transpose(glm::inverse(model)));
 }
 
-struct ModelComponent{
+struct ModelComponent {
     std::shared_ptr<Model> model{};
+};
+
+
+struct MaterialComponent {
+    glm::vec3 baseColor{1.0f};     // fallback color if no texture
+    float metallic{0.0f};          // PBR support
+    float roughness{1.0f};         // PBR support
+    int textureIndex{-1};          // index into TextureManager (diffuse/albedo)
+    int normalMapIndex{-1};        // normal map (optional)
+    int roughnessMapIndex{-1};     // roughness map (optional)
+};
+
+// Optional: only if you want textures directly on entities
+struct TextureComponent {
+    int textureID{-1}; // index in TextureManager
 };
 
 // Lighting

@@ -6,12 +6,9 @@ set(CMAKE_CXX_STANDARD 20)
 
 find_package(Vulkan REQUIRED)
 
-# Set GLFW paths based on platform
-if(APPLE)
-    set(GLFW_LIB ${CMAKE_SOURCE_DIR}/Dependencies/lib-arm64/libglfw.3.dylib)
-elseif(WIN32)
-    set(GLFW_LIB ${CMAKE_SOURCE_DIR}/Dependencies/lib-vc2022/glfw3.lib)
-endif()
+# Set GLFW lib for Windows
+set(GLFW_LIB ${CMAKE_SOURCE_DIR}/Dependencies/lib-vc2022/glfw3.lib)
+
 
 # Set TinyOBJ path
 set(TINYOBJ_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/tinyobjloader)
@@ -81,9 +78,18 @@ if(WIN32)
 
 elseif(UNIX)
     if(APPLE)
+        # Add GLFW (as submodule)
+        set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+        set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+        set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+        add_subdirectory(${CMAKE_SOURCE_DIR}/Dependencies/glfw)
+
+        target_link_libraries(imgui PUBLIC glfw)
+
         target_link_libraries(V-Engine
             imgui
-            ${GLFW_LIB}
+            glfw
             Vulkan::Vulkan)
     else()
         add_subdirectory(${CMAKE_SOURCE_DIR}/Dependencies/glfw)

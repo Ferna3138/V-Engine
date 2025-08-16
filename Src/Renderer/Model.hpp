@@ -12,6 +12,9 @@
 #include <cstring>
 #include <memory>
 #include <vector>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 class Model{
     public:
@@ -40,7 +43,9 @@ class Model{
             float     dissolve      = 1.f;   // 1 == opaque; 0 == fully transparent
                                             // illumination model (see http://www.fileformat.info/format/material/)
             int illum     = 0;
-            int textureID = -1;
+            int diffuseTexID = -1;
+            int specularTexID = -1;
+            int normalTexID = -1;
         };
 
         struct Builder{
@@ -69,15 +74,16 @@ class Model{
 
         Device& device;
 
-        std::unique_ptr<Buffer> vertexBuffer;
-        uint32_t vertexCount;
-
         bool hasIndexBuffer = false;
-        std::unique_ptr<Buffer> indexBuffer;
-        uint32_t indexCount;
-
-        std::unique_ptr<Buffer> textureBuffer;
         
-        std::unique_ptr<Buffer> materialColourBuffer;
-        std::unique_ptr<Buffer> materialIndexBuffer;
+        uint32_t vertexCount;
+        uint32_t indexCount;
+        
+        std::unique_ptr<Buffer> vertexBuffer;
+        std::unique_ptr<Buffer> indexBuffer;
+        
+        // CPU-side only, used by ECS / TextureManager
+        std::vector<MaterialObj> materials;
+        std::vector<std::string> textures;
+        std::vector<int32_t> materialsIndices;
 };

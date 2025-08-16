@@ -1,9 +1,7 @@
 #include "Scene.hpp"
 
 // You can add more systems here
-Scene::Scene() {
-
-}
+Scene::Scene() { }
 
 entt::entity Scene::createEntity(const std::string& name) {
     auto entity = registry.create();
@@ -21,6 +19,7 @@ entt::entity Scene::createPointLight(glm::vec4 colour, float radius) {
 entt::entity Scene::createModelEntity(std::shared_ptr<Model> model) {
     auto entity = createEntity("Model");
     registry.emplace<ModelComponent>(entity, model);
+    
     return entity;
 }
 
