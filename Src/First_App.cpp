@@ -55,7 +55,7 @@ void FirstApp::run() {
         uboBuffers[i]->map(); 
     }
 
-    Texture texture = Texture(device, "../Models/Sponza_obj/textures/sponza_ceiling_a_diff.tga");
+    Texture texture = Texture(device, "Models/Sponza_obj/textures/sponza_ceiling_a_diff.tga");
 
     VkDescriptorImageInfo imageInfo {};
     imageInfo.sampler = texture.getSampler();
@@ -173,7 +173,7 @@ void FirstApp::run() {
 
 
 void FirstApp::loadGameObjects() {
-    std::shared_ptr<Model> model = Model::createModelFromFile(device, "../Models/Sponza_obj/sponza.obj");
+    std::shared_ptr<Model> model = Model::createModelFromFile(device, "Models/Sponza_obj/sponza.obj");
 
     entt::entity sponza = scene.createModelEntity(model);
     auto& sponzaTransform = scene.getRegistry().get<TransformComponent>(sponza);

@@ -82,7 +82,7 @@ class Model{
         std::unique_ptr<Buffer> vertexBuffer;
         std::unique_ptr<Buffer> indexBuffer;
         
-        // CPU-side only, used by ECS / TextureManager
+        // CPU-side only, used by ECS
         std::vector<MaterialObj> materials;
         std::vector<std::string> textures;
         std::vector<int32_t> materialsIndices;

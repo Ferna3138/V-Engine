@@ -2,7 +2,6 @@
 
 #include <entt.hpp>
 #include "Components/Components.hpp"
-#include "Renderer/Texture_Manager.hpp"
 
 class Scene {
 public:

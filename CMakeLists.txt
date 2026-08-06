@@ -12,6 +12,8 @@ set(GLFW_LIB ${CMAKE_SOURCE_DIR}/Dependencies/lib-vc2022/glfw3.lib)
 
 # Set TinyOBJ path
 set(TINYOBJ_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/tinyobjloader)
+# Set TinyGLTF path
+set(TINYGLTF_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/tinygltfloader)
 
 # Set EnTT path
 set(ENTT_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/EnTT)
@@ -43,7 +45,7 @@ target_include_directories(imgui PUBLIC
     ${IMGUI_DIR}/backends
 )
 
-target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_DOCKING)
+target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_DOCKING TINYGLTF3_ENABLE_FS)
 
 add_executable(V-Engine ${SOURCES} ${HEADERS})
 
@@ -53,6 +55,7 @@ target_include_directories(V-Engine
     ${CMAKE_SOURCE_DIR}/Src
     Dependencies
     ${TINYOBJ_PATH}
+    ${TINYGLTF_PATH}
     ${ENTT_PATH}
 )
 
