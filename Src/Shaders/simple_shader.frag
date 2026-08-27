@@ -1,4 +1,5 @@
 #version 450
+#extension GL_EXT_nonuniform_qualifier : enable
 
 #include "shader_common.glsl"
 #include "light_common.glsl"
@@ -8,11 +9,12 @@ layout(location = 0) in vec3 fragColour;
 layout(location = 1) in vec3 fragPosWorld;
 layout(location = 2) in vec3 fragNormalWorld;
 layout(location = 3) in vec2 fragUV;
+layout(location = 4) flat in int fragTexIndex;
 
 layout(location = 0) out vec4 outColour;
 
 
-layout(set = 0, binding = 1) uniform sampler2D image;
+layout(set = 1, binding = 0) uniform sampler2D textures[];
 
 
 layout(push_constant) uniform Push {
@@ -32,7 +34,7 @@ void main() {
     // Material parameters for PBR
     float roughness = 0.3; // tweakable or passed as uniform
     float metallic = 0.4;  // tweakable or passed as uniform
-    vec3 albedo = fragColour;
+    vec3 albedo = texture(textures[nonuniformEXT(fragTexIndex)], fragUV).rgb;
     vec3 F0 = mix(vec3(0.04), albedo, metallic);
 
     for (int i = 0; i < ubo.numLights; i++) {
@@ -66,6 +68,5 @@ void main() {
         specularLight += specular * radiance * NdotL;
     }
 
-    vec3 imageColour = texture(image, fragUV).rgb;
-    outColour = vec4((diffuseLight * albedo + specularLight) * imageColour, 1.0);
+    outColour = vec4(diffuseLight * albedo + specularLight, 1.0);
 }

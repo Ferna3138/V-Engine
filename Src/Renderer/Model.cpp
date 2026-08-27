@@ -36,9 +36,9 @@ Model::Model(Device& _device, const Model::Builder &builder) : device{_device} {
 
 Model::~Model() { }
 
-std::unique_ptr<Model> Model::createModelFromFile(Device& device, const std::string &filepath) {
+std::unique_ptr<Model> Model::createModelFromFile(Device& device, TextureManager& textureManager, const std::string &filepath) {
     Builder builder{};
-    builder.loadModel(filepath);
+    builder.loadModel(filepath, textureManager);
     return std::make_unique<Model>(device, builder);
 }
 
@@ -138,13 +138,14 @@ std::vector<VkVertexInputAttributeDescription> Model::Vertex::getAttributeDescri
     attributeDescriptions.push_back({1,0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, colour)});
     attributeDescriptions.push_back({2,0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal)});
     attributeDescriptions.push_back({3,0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, uv)});
+    attributeDescriptions.push_back({4,0, VK_FORMAT_R32_SINT, offsetof(Vertex, textureIndex)});
 
     return attributeDescriptions;
 }
 
 
 
-void Model::Builder::loadModel(const std::string& filename) {
+void Model::Builder::loadModel(const std::string& filename, TextureManager& textureManager) {
     tinyobj::ObjReader reader;
     reader.ParseFromFile(filename);
     if(!reader.Valid()) {
@@ -170,15 +171,14 @@ void Model::Builder::loadModel(const std::string& filename) {
         m.illum         = material.illum;
 
         auto resolveTexture = [&](const std::string& texName) -> int {
-            if (texName.empty()) return -1;
+            if (texName.empty()) return 0;
             fs::path texFile = texDir / fs::path(texName).filename();
             if (fs::exists(texFile)) {
                 textures.push_back(texFile.string());
-                return static_cast<int>(textures.size()) - 1;
+                return static_cast<int>(textureManager.addTexture(texFile.string()));
             } else {
                 // fallback: use raw path (might be absolute or relative)
-                textures.push_back(texName);
-                return static_cast<int>(textures.size()) - 1;
+                return 0;
             }
         };
 
@@ -231,10 +231,11 @@ void Model::Builder::loadModel(const std::string& filename) {
     }
 
     // Fixing material indices
-    for (auto& mi : materialsIndices) {
-        if (mi < 0 || mi >= static_cast<int>(materials.size())) {
-            mi = 0;
-        }
+    for (size_t t = 0; t < materialsIndices.size(); t++) {
+        int texID = materials[materialsIndices[t]].diffuseTexID;
+        vertices[3*t + 0].textureIndex = texID;
+        vertices[3*t + 1].textureIndex = texID;
+        vertices[3*t + 2].textureIndex = texID;
     }
 
     // Compute normals when none were provided.

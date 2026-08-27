@@ -18,6 +18,7 @@ struct GlobalUbo{
     glm::mat4 projection{1.f};
     glm::mat4 view{1.f};
     glm::mat4 inverseView{1.f};
+    glm::mat4 inverseProj{1.f};
     glm::vec4 ambientLightColour{1.f, 1.f, 1.f, 0.02f}; // W is intensity
     PointLight pointLights[MAX_LIGHTS];
     int numLights;
@@ -25,13 +26,13 @@ struct GlobalUbo{
 
 
 struct FrameInfo {
-    int frameIndex;
-    float frameTime;
-    VkCommandBuffer commandBuffer;
-    Camera& camera;
-
-    VkDescriptorSet globalDescriptorSet;
-    entt::registry& registry;
+    int frameIndex;               // 1
+    float frameTime;              // 2
+    VkCommandBuffer commandBuffer;// 3
+    Camera& camera;               // 4
+    VkDescriptorSet globalDescriptorSet;   // 5
+    VkDescriptorSet textureDescriptorSet;  // 6 
+    entt::registry& registry;              // 7
 };
 
 

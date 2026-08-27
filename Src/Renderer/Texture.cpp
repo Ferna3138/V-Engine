@@ -97,13 +97,16 @@ Texture::Texture(Device &_device, int _width, int _height, VkFormat _format, VkI
     };
     stagingBuffer.map();
     //stagingBuffer.writeToBuffer(data);
-
+    if(width && height > 1)
+        mipLevels = std::floor(std::log2(std::max(width, height))) + 1;
+    else
+        mipLevels = 1;
 
     VkImageCreateInfo imageInfo {};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
     imageInfo.format = imageFormat;
-    imageInfo.mipLevels = 1;
+    imageInfo.mipLevels = mipLevels;
     imageInfo.arrayLayers = 1;
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -119,6 +122,9 @@ Texture::Texture(Device &_device, int _width, int _height, VkFormat _format, VkI
     device.copyBufferToImage(stagingBuffer.getBuffer(), image, static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1);
 
     transitionImageLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    if (mipLevels > 1)
+        generateMipmaps();
 
     imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 

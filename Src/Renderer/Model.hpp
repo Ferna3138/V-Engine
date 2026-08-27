@@ -2,6 +2,7 @@
 
 #include "Renderer/Device.hpp"
 #include "Renderer/Buffer.hpp"
+#include "Renderer/TextureManager.hpp"
 
 // Libs
 #define GLM_FORCE_RADIANS
@@ -23,6 +24,8 @@ class Model{
             glm::vec3 colour;
             glm::vec3 normal;
             glm::vec2 uv;
+            int textureIndex{-1};
+
 
             static std::vector<VkVertexInputBindingDescription> getBindingDescriptions();
             static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions();
@@ -54,7 +57,7 @@ class Model{
             std::vector<MaterialObj> materials;
             std::vector<std::string> textures;
             std::vector<int32_t>     materialsIndices;
-            void loadModel(const std::string &filepath);
+            void loadModel(const std::string &filepath, TextureManager& textureManager);
         };
 
         Model(Device& _device, const Model::Builder &builder);
@@ -63,7 +66,7 @@ class Model{
         Model(const Model&) = delete;
         Model &operator = (const Model&) = delete;
 
-        static std::unique_ptr<Model> createModelFromFile(Device& device, const std::string &filepath);
+        static std::unique_ptr<Model> createModelFromFile(Device& device, TextureManager& textureManager, const std::string &filepath);
 
         void bind(VkCommandBuffer commandBuffer);
         void draw(VkCommandBuffer commandBuffer);
@@ -74,11 +77,13 @@ class Model{
 
         Device& device;
 
+
         bool hasIndexBuffer = false;
         
         uint32_t vertexCount;
         uint32_t indexCount;
         
+
         std::unique_ptr<Buffer> vertexBuffer;
         std::unique_ptr<Buffer> indexBuffer;
         

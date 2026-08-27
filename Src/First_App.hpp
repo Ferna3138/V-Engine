@@ -4,6 +4,7 @@
 #include "Renderer/Window.hpp"
 #include "Renderer/Renderer.hpp"
 #include "Renderer/Descriptors.hpp"
+#include "Renderer/TextureManager.hpp"
 
 #include "Scene.hpp"
 
@@ -40,11 +41,12 @@ class FirstApp {
         bool visualisePointLights = true;
 
         void loadGameObjects();
-
-
+        
+        
         Window window{WIDTH, HEIGHT, "V-Engine"};
         Device device{window};
         Renderer renderer{window, device};
+        TextureManager textureManager{device};
 
         // Note: Order of declarations matters
         std::unique_ptr<DescriptorPool> globalPool;

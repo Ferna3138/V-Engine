@@ -13,6 +13,14 @@ void Camera::setOrthographicProjection(float left, float right, float top, float
     projectionMatrix[3][0] = -(right + left) / (right - left);
     projectionMatrix[3][1] = -(bottom + top) / (bottom - top);
     projectionMatrix[3][2] = -near / (far - near);
+
+    inverseProjectionMatrix = glm::mat4{1.0f};
+    inverseProjectionMatrix[0][0] = (right - left) / 2.f;
+    inverseProjectionMatrix[1][1] = (bottom - top) / 2.f;
+    inverseProjectionMatrix[2][2] = (far - near);
+    inverseProjectionMatrix[3][0] = (right + left) / 2.f;
+    inverseProjectionMatrix[3][1] = (bottom + top) / 2.f;
+    inverseProjectionMatrix[3][2] = near;
 }
  
 void Camera::setPerspectiveProjection(float fovy, float aspect, float near, float far) {

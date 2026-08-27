@@ -55,16 +55,9 @@ void FirstApp::run() {
         uboBuffers[i]->map(); 
     }
 
-    Texture texture = Texture(device, "Models/Sponza_obj/textures/sponza_ceiling_a_diff.tga");
-
-    VkDescriptorImageInfo imageInfo {};
-    imageInfo.sampler = texture.getSampler();
-    imageInfo.imageView = texture.getImageView();
-    imageInfo.imageLayout = texture.getImageLayout();
 
     auto globalSetLayout = DescriptorSetLayout::Builder(device)
         .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
-        .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
         .build();
     
     std::vector<VkDescriptorSet> globalDescriptorSets(SwapChain::MAX_FRAMES_IN_FLIGHT);
@@ -72,13 +65,16 @@ void FirstApp::run() {
         auto bufferInfo = uboBuffers[i]->descriptorInfo();
         DescriptorWriter(*globalSetLayout, *globalPool)
             .writeBuffer(0, &bufferInfo)
-            .writeImage(1, &imageInfo)
             .build(globalDescriptorSets[i]);
     }
 
 
     // Pipeline creation
-    SimpleRenderSystem simpleRenderSystem{device, renderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
+    SimpleRenderSystem simpleRenderSystem{
+        device,
+        renderer.getSwapChainRenderPass(),
+        globalSetLayout->getDescriptorSetLayout(),
+        textureManager.getLayout()};
     PointLightSystem pointLightSystem{device, renderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
 
     setUpImgui();
@@ -131,6 +127,7 @@ void FirstApp::run() {
                 commandBuffer,
                 cameraComponent.camera,
                 globalDescriptorSets[frameIndex],
+                textureManager.getDescriptorSet(),
                 scene.getRegistry()
             };
 
@@ -139,6 +136,7 @@ void FirstApp::run() {
             ubo.projection = cameraComponent.camera.getProjection();
             ubo.view = cameraComponent.camera.getView();
             ubo.inverseView = cameraComponent.camera.getInverseView();
+            ubo.inverseProj = cameraComponent.camera.getInverseProj();
             
             pointLightSystem.update(frameInfo, ubo);
             uboBuffers[frameIndex]->writeToBuffer(&ubo);
@@ -173,7 +171,7 @@ void FirstApp::run() {
 
 
 void FirstApp::loadGameObjects() {
-    std::shared_ptr<Model> model = Model::createModelFromFile(device, "Models/Sponza_obj/sponza.obj");
+    std::shared_ptr<Model> model = Model::createModelFromFile(device, textureManager, "Models/Sponza_obj/sponza.obj");
 
     entt::entity sponza = scene.createModelEntity(model);
     auto& sponzaTransform = scene.getRegistry().get<TransformComponent>(sponza);

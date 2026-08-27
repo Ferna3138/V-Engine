@@ -6,11 +6,13 @@ layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 colour;
 layout(location = 2) in vec3 normal;
 layout(location = 3) in vec2 uv;
+layout(location = 4) in int textureIndex;
 
 layout(location = 0) out vec3 fragColour;
 layout(location = 1) out vec3 fragPosWorld;
 layout(location = 2) out vec3 fragNormalWorld;
 layout(location = 3) out vec2 fragUV;
+layout(location = 4) flat out int fragTexIndex;
 
 
 layout(push_constant) uniform Push {
@@ -27,4 +29,5 @@ void main() {
     fragPosWorld = positionWorld.xyz;
     fragColour = colour;
     fragUV = uv;
+    fragTexIndex = textureIndex;
 }

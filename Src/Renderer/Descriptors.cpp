@@ -40,11 +40,24 @@ DescriptorSetLayout::DescriptorSetLayout(Device& _device, std::unordered_map<uin
     setLayoutBindings.reserve(bindings.size());
     bindingFlagsVec.reserve(bindings.size());
 
+    bool hasNonZeroFlags = false;
+
     // push bindings and flags in the same order
-    for (auto kv : bindings) {
-        setLayoutBindings.push_back(kv.second);
-        // lookup flag for this binding (Builder should have stored it)
-        // if not found, default to 0
+    for (const auto& [bindingIndex, bindingLayout] : bindings) {
+        setLayoutBindings.push_back(bindingLayout);
+
+        // Lookup the flag for this specific binding index
+        VkDescriptorBindingFlags flag = 0;
+        auto it = bindingFlags.find(bindingIndex);
+        if (it != bindingFlags.end()) {
+            flag = it->second;
+        }
+
+        bindingFlagsVec.push_back(flag);
+
+        if (flag != 0) {
+            hasNonZeroFlags = true;
+        }
     }
 
     VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{};
@@ -53,20 +66,18 @@ DescriptorSetLayout::DescriptorSetLayout(Device& _device, std::unordered_map<uin
     descriptorSetLayoutInfo.pBindings = setLayoutBindings.data();
 
 
-    // If you filled bindingFlagsVec:
-    if (!bindingFlagsVec.empty()) {
-        VkDescriptorSetLayoutBindingFlagsCreateInfo flagsCreateInfo{};
+    // Setup Vulkan pNext structure only if at least one binding requires binding flags
+    VkDescriptorSetLayoutBindingFlagsCreateInfo flagsCreateInfo{};
+    if (hasNonZeroFlags) {
         flagsCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
         flagsCreateInfo.bindingCount = static_cast<uint32_t>(bindingFlagsVec.size());
         flagsCreateInfo.pBindingFlags = bindingFlagsVec.data();
+        
         descriptorSetLayoutInfo.pNext = &flagsCreateInfo;
 
-        // When using update-after-bind, you generally also set this flag on layout create info:
+        // Optionally set UPDATE_AFTER_BIND flag if any flags use update-after-bind feature
         descriptorSetLayoutInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
-    } else {
-        descriptorSetLayoutInfo.pNext = nullptr;
     }
-
 
 
     if (vkCreateDescriptorSetLayout(
