@@ -30,9 +30,6 @@ class Model{
             static std::vector<VkVertexInputBindingDescription> getBindingDescriptions();
             static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions();
 
-            bool operator == (const Vertex& other) const {
-                return position == other.position && colour == other.colour && normal == other.normal && uv == other.uv;
-            }
         };
 
         struct MaterialObj {
@@ -55,7 +52,6 @@ class Model{
             std::vector<Vertex> vertices{};
             std::vector<uint32_t> indices{};
             std::vector<MaterialObj> materials;
-            std::vector<std::string> textures;
             std::vector<int32_t>     materialsIndices;
             void loadModel(const std::string &filepath, TextureManager& textureManager);
         };
@@ -86,9 +82,4 @@ class Model{
 
         std::unique_ptr<Buffer> vertexBuffer;
         std::unique_ptr<Buffer> indexBuffer;
-        
-        // CPU-side only, used by ECS
-        std::vector<MaterialObj> materials;
-        std::vector<std::string> textures;
-        std::vector<int32_t> materialsIndices;
 };

@@ -22,34 +22,34 @@ TextureManager::TextureManager(Device& _device) : device{_device} {
 
     // Fallback texture
     textures.push_back(std::make_unique<Texture>(device, 1, 1, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT));
-    Texture& tex = *textures.back();
-
-    VkDescriptorImageInfo imageInfo{};
-    imageInfo.sampler = tex.getSampler();
-    imageInfo.imageView = tex.getImageView();
-    imageInfo.imageLayout = tex.getImageLayout();
-
-    DescriptorWriter(*setLayout, *pool)
-        .writeImage(0, &imageInfo, 1, 0)   // literal 0, not nextIndex
-        .overwrite(descriptorSet);
+    writeTextureToSlot(*textures.back(), 0);
 }
 
 uint32_t TextureManager::addTexture(const std::string& filepath) {
+    auto it = pathToIndex.find(filepath);
+    if (it != pathToIndex.end()) {
+        return it->second;
+    }
 
     textures.push_back(std::make_unique<Texture>(device, filepath));
-    Texture& tex = *textures.back();
-
-    VkDescriptorImageInfo imageInfo{};
-    imageInfo.sampler = tex.getSampler();
-    imageInfo.imageView = tex.getImageView();
-    imageInfo.imageLayout = tex.getImageLayout();
-
-    DescriptorWriter(*setLayout, *pool)
-        .writeImage(0, &imageInfo, 1, nextIndex)
-        .overwrite(descriptorSet);
+    writeTextureToSlot(*textures.back(), nextIndex);
 
     uint32_t currentIndex = nextIndex;
+    pathToIndex[filepath] = currentIndex;
     nextIndex++;
 
     return currentIndex;
 }
+
+
+void TextureManager::writeTextureToSlot(Texture& tex, uint32_t slot){
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.sampler = tex.getSampler();
+    imageInfo.imageView = tex.getImageView();
+    imageInfo.imageLayout = tex.getImageLayout();
+
+    DescriptorWriter(*setLayout, *pool)
+        .writeImage(0, &imageInfo, 1, slot)
+        .overwrite(descriptorSet);
+}
+

@@ -12,26 +12,11 @@
 #include <unordered_map>
 
 
-namespace std{
-    template <>
-    struct hash<Model::Vertex> {
-        size_t operator()(const Model::Vertex &vertex) const {
-            size_t seed = 0;
-            hashCombine(seed, vertex.position, vertex.colour, vertex.normal, vertex.uv);
-            return seed;
-        }
-    };
-}
 
 
 Model::Model(Device& _device, const Model::Builder &builder) : device{_device} {
     createVertexBuffers(builder.vertices);
     createIndexBuffers(builder.indices);
-
-    materialsIndices = builder.materialsIndices; 
-    materials = builder.materials; 
-    textures = builder.textures; // texture file paths
-
 }
 
 Model::~Model() { }
@@ -174,10 +159,9 @@ void Model::Builder::loadModel(const std::string& filename, TextureManager& text
             if (texName.empty()) return 0;
             fs::path texFile = texDir / fs::path(texName).filename();
             if (fs::exists(texFile)) {
-                textures.push_back(texFile.string());
                 return static_cast<int>(textureManager.addTexture(texFile.string()));
             } else {
-                // fallback: use raw path (might be absolute or relative)
+                // fallback: use fallback texture
                 return 0;
             }
         };

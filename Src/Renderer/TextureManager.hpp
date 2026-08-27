@@ -3,14 +3,11 @@
 #include "Device.hpp"
 #include "Renderer/Descriptors.hpp"
 #include "Renderer/Texture.hpp"
-
 // std
 #include <string>
-#include <cmath>
 #include <memory>
-#include <unordered_map>
 #include <vector>
-#include <iostream>
+#include <unordered_map>
 
 class TextureManager{
     public:
@@ -23,11 +20,17 @@ class TextureManager{
     
     private:
         Device& device;
+        
         std::unique_ptr<DescriptorSetLayout> setLayout;
         std::unique_ptr<DescriptorPool> pool;
         VkDescriptorSet descriptorSet;
+        
         std::vector<std::unique_ptr<Texture>> textures;
         uint32_t nextIndex = 1;
+        
+        std::unordered_map<std::string, uint32_t> pathToIndex;
 
         static constexpr uint32_t MAX_BINDLESS_TEXTURES = 1024;
-};
+
+        void writeTextureToSlot(Texture&, uint32_t slot);
+    };
