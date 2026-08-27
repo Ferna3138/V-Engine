@@ -9,7 +9,7 @@
 class Texture{
     public:
         Texture(Device &device, const std::string &filepath);
-        Texture(Device &device, int width, int height, VkFormat format, VkImageUsageFlags usage);
+        Texture(Device &device, int width, int height, uint8_t* _data, VkFormat format, VkImageUsageFlags usage);
         ~Texture();
 
         Texture(const Texture &) = delete;

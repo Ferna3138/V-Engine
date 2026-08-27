@@ -25,7 +25,9 @@ class Model{
             glm::vec3 normal;
             glm::vec2 uv;
             int textureIndex{-1};
-
+            int specularIndex{-1};
+            int normalIndex{-1};
+            glm::vec3 tangent{0.f};
 
             static std::vector<VkVertexInputBindingDescription> getBindingDescriptions();
             static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions();

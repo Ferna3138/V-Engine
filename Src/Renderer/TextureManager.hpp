@@ -21,12 +21,16 @@ class TextureManager{
     private:
         Device& device;
         
+        uint8_t blackPixel[4]  = {0, 0, 0, 255};
+        uint8_t whitePixel[4]  = {255, 255, 255, 255};
+        uint8_t flatNormal[4]  = {128, 128, 255, 255};
+
         std::unique_ptr<DescriptorSetLayout> setLayout;
         std::unique_ptr<DescriptorPool> pool;
         VkDescriptorSet descriptorSet;
         
         std::vector<std::unique_ptr<Texture>> textures;
-        uint32_t nextIndex = 1;
+        uint32_t nextIndex = 3;
         
         std::unordered_map<std::string, uint32_t> pathToIndex;
 

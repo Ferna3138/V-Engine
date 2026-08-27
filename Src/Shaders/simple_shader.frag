@@ -10,6 +10,10 @@ layout(location = 1) in vec3 fragPosWorld;
 layout(location = 2) in vec3 fragNormalWorld;
 layout(location = 3) in vec2 fragUV;
 layout(location = 4) flat in int fragTexIndex;
+layout(location = 5) flat in int fragSpecIndex;
+layout(location = 6) flat in int fragNormalIndex;
+layout(location = 7) in vec3 fragTangentWorld;
+
 
 layout(location = 0) out vec4 outColour;
 
@@ -26,16 +30,25 @@ layout(push_constant) uniform Push {
 void main() {
     vec3 diffuseLight = ubo.ambientLightColor.xyz * ubo.ambientLightColor.w;
     vec3 specularLight = vec3(0.0);
-    vec3 surfaceNormal = normalize(fragNormalWorld);
+
+    vec3 N = normalize(fragNormalWorld);
+    vec3 T = normalize(fragTangentWorld - N * dot(N, fragTangentWorld));
+    vec3 B = cross(N, T);
+    mat3 TBN = mat3(T, B, N);
+
+    vec3 sampledNormal = texture(textures[nonuniformEXT(fragNormalIndex)], fragUV).rgb;
+    sampledNormal = normalize(sampledNormal * 2.0 - 1.0);
+    vec3 surfaceNormal = normalize(TBN * sampledNormal);
 
     vec3 cameraPosWorld = ubo.invView[3].xyz;
     vec3 viewDirection = normalize(cameraPosWorld - fragPosWorld);
 
     // Material parameters for PBR
-    float roughness = 0.3; // tweakable or passed as uniform
-    float metallic = 0.4;  // tweakable or passed as uniform
+    float roughness = 0.3;
+    float metallic = 0.4;
     vec3 albedo = texture(textures[nonuniformEXT(fragTexIndex)], fragUV).rgb;
-    vec3 F0 = mix(vec3(0.04), albedo, metallic);
+    vec3 specularSample = texture(textures[nonuniformEXT(fragSpecIndex)], fragUV).rgb;
+    vec3 F0 = mix(vec3(0.04), albedo, metallic) * specularSample;
 
     for (int i = 0; i < ubo.numLights; i++) {
         PointLight light = ubo.pointLights[i];

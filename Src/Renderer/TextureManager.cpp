@@ -21,8 +21,12 @@ TextureManager::TextureManager(Device& _device) : device{_device} {
     pool->allocateDescriptor(setLayout->getDescriptorSetLayout(), descriptorSet, MAX_BINDLESS_TEXTURES);
 
     // Fallback texture
-    textures.push_back(std::make_unique<Texture>(device, 1, 1, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT));
+    textures.push_back(std::make_unique<Texture>(device, 1, 1, blackPixel, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT));
     writeTextureToSlot(*textures.back(), 0);
+    textures.push_back(std::make_unique<Texture>(device, 1, 1, whitePixel, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT));
+    writeTextureToSlot(*textures.back(), 1);
+    textures.push_back(std::make_unique<Texture>(device, 1, 1, flatNormal, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT));
+    writeTextureToSlot(*textures.back(), 2);
 }
 
 uint32_t TextureManager::addTexture(const std::string& filepath) {

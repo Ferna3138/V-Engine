@@ -84,7 +84,7 @@ Texture::Texture(Device &_device, const std::string &filepath) : device{_device}
     stbi_image_free(data);
 }
 
-Texture::Texture(Device &_device, int _width, int _height, VkFormat _format, VkImageUsageFlags usage) : device{_device}, width{_width}, height{_height}, imageFormat{_format}{
+Texture::Texture(Device &_device, int _width, int _height, uint8_t* _data, VkFormat _format, VkImageUsageFlags usage) : device{_device}, width{_width}, height{_height}, imageFormat{_format}{
     int channels;
     int bytesPerPixel;
 
@@ -96,7 +96,8 @@ Texture::Texture(Device &_device, int _width, int _height, VkFormat _format, VkI
         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
     };
     stagingBuffer.map();
-    //stagingBuffer.writeToBuffer(data);
+    stagingBuffer.writeToBuffer(_data);
+
     if(width && height > 1)
         mipLevels = std::floor(std::log2(std::max(width, height))) + 1;
     else
@@ -121,10 +122,10 @@ Texture::Texture(Device &_device, int _width, int _height, VkFormat _format, VkI
 
     device.copyBufferToImage(stagingBuffer.getBuffer(), image, static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1);
 
-    transitionImageLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
     if (mipLevels > 1)
         generateMipmaps();
+
+    transitionImageLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 

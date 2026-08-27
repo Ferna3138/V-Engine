@@ -124,6 +124,10 @@ std::vector<VkVertexInputAttributeDescription> Model::Vertex::getAttributeDescri
     attributeDescriptions.push_back({2,0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal)});
     attributeDescriptions.push_back({3,0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, uv)});
     attributeDescriptions.push_back({4,0, VK_FORMAT_R32_SINT, offsetof(Vertex, textureIndex)});
+    attributeDescriptions.push_back({5,0, VK_FORMAT_R32_SINT, offsetof(Vertex, specularIndex)});
+    attributeDescriptions.push_back({6,0, VK_FORMAT_R32_SINT, offsetof(Vertex, normalIndex)});
+    attributeDescriptions.push_back({7,0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, tangent)});
+
 
     return attributeDescriptions;
 }
@@ -155,25 +159,23 @@ void Model::Builder::loadModel(const std::string& filename, TextureManager& text
         m.shininess     = material.shininess;
         m.illum         = material.illum;
 
-        auto resolveTexture = [&](const std::string& texName) -> int {
-            if (texName.empty()) return 0;
+        auto resolveTexture = [&](const std::string& texName, int defaultIndex) -> int {
+            if (texName.empty()) return defaultIndex;
             fs::path texFile = texDir / fs::path(texName).filename();
             if (fs::exists(texFile)) {
                 return static_cast<int>(textureManager.addTexture(texFile.string()));
-            } else {
-                // fallback: use fallback texture
-                return 0;
             }
+            return defaultIndex;
         };
 
         // Load diffuse texture
-        m.diffuseTexID = resolveTexture(material.diffuse_texname);
+        m.diffuseTexID = resolveTexture(material.diffuse_texname, 1);
 
         // Load specular map
-        m.specularTexID = resolveTexture(material.specular_texname);
+        m.specularTexID = resolveTexture(material.specular_texname, 0);
 
         // Load normal map (bump_texname is used for normal in OBJ/MTL)
-        m.normalTexID = resolveTexture(material.bump_texname);
+        m.normalTexID = resolveTexture(material.bump_texname, 2);
 
         materials.emplace_back(m);
     }
@@ -214,20 +216,23 @@ void Model::Builder::loadModel(const std::string& filename, TextureManager& text
         }
     }
 
-    // Fixing material indices
     for (size_t t = 0; t < materialsIndices.size(); t++) {
-        int texID = materials[materialsIndices[t]].diffuseTexID;
-        vertices[3*t + 0].textureIndex = texID;
-        vertices[3*t + 1].textureIndex = texID;
-        vertices[3*t + 2].textureIndex = texID;
+        const MaterialObj& mat = materials[materialsIndices[t]];
+        for (int k = 0; k < 3; k++) {
+            Vertex& v = vertices[3*t + k];
+            v.textureIndex  = mat.diffuseTexID;
+            v.specularIndex = mat.specularTexID;
+            v.normalIndex   = mat.normalTexID;
+        }
     }
 
     // Compute normals when none were provided.
+    // Compute normals when none were provided.
     if (attrib.normals.empty()) {
-        for (size_t i = 0; i < indices.size(); i += 3) {
-            Vertex& v0 = vertices[indices[i + 0]];
-            Vertex& v1 = vertices[indices[i + 1]];
-            Vertex& v2 = vertices[indices[i + 2]];
+        for (size_t t = 0; t < indices.size() / 3; t++) {
+            Vertex& v0 = vertices[indices[3*t + 0]];
+            Vertex& v1 = vertices[indices[3*t + 1]];
+            Vertex& v2 = vertices[indices[3*t + 2]];
 
             glm::vec3 n = glm::normalize(glm::cross((v1.position - v0.position),
                                                     (v2.position - v0.position)));
@@ -235,6 +240,30 @@ void Model::Builder::loadModel(const std::string& filename, TextureManager& text
             v1.normal = n;
             v2.normal = n;
         }
+    }
+
+    // Compute tangents (OBJ never provides these, regardless of whether normals exist).
+    for (size_t t = 0; t < indices.size() / 3; t++) {
+        Vertex& v0 = vertices[3*t + 0];
+        Vertex& v1 = vertices[3*t + 1];
+        Vertex& v2 = vertices[3*t + 2];
+
+        glm::vec3 edge1 = v1.position - v0.position;
+        glm::vec3 edge2 = v2.position - v0.position;
+        glm::vec2 deltaUV1 = v1.uv - v0.uv;
+        glm::vec2 deltaUV2 = v2.uv - v0.uv;
+
+        float denom = deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y;
+        glm::vec3 tangent(1.f, 0.f, 0.f);
+        if (std::abs(denom) > 1e-8f) {
+            float f = 1.0f / denom;
+            tangent = f * (deltaUV2.y * edge1 - deltaUV1.y * edge2);
+            tangent = glm::normalize(tangent);
+        }
+
+        v0.tangent = tangent;
+        v1.tangent = tangent;
+        v2.tangent = tangent;
     }
 }
 
