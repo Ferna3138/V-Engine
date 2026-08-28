@@ -5,7 +5,7 @@
 #include "libs/stb_image/stb_image.h"
 #include <stdexcept>
 
-Texture::Texture(Device &_device, const std::string &filepath) : device{_device} {
+Texture::Texture(Device &_device, const std::string &filepath, VkFormat format) : device{_device} {
     int channels;
     int bytesPerPixel;
 
@@ -23,7 +23,7 @@ Texture::Texture(Device &_device, const std::string &filepath) : device{_device}
     stagingBuffer.map();
     stagingBuffer.writeToBuffer(data);
 
-    imageFormat = VK_FORMAT_R8G8B8A8_SRGB;
+    imageFormat = format;
 
     VkImageCreateInfo imageInfo {};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;

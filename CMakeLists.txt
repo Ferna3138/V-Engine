@@ -6,8 +6,9 @@ set(CMAKE_CXX_STANDARD 20)
 
 find_package(Vulkan REQUIRED)
 
-# Set GLFW lib for Windows
+# Set GLFW lib and include dir for Windows
 set(GLFW_LIB ${CMAKE_SOURCE_DIR}/Dependencies/lib-vc2022/glfw3.lib)
+set(GLFW_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/Dependencies/glfw/include)
 
 
 # Set TinyOBJ path
@@ -43,6 +44,7 @@ target_include_directories(imgui PUBLIC
     ${CMAKE_SOURCE_DIR}/Dependencies/
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
+    $<$<PLATFORM_ID:Windows>:${GLFW_INCLUDE_DIR}>
 )
 
 target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_DOCKING TINYGLTF3_ENABLE_FS)
@@ -57,13 +59,14 @@ target_include_directories(V-Engine
     ${TINYOBJ_PATH}
     ${TINYGLTF_PATH}
     ${ENTT_PATH}
+    $<$<PLATFORM_ID:Windows>:${GLFW_INCLUDE_DIR}>
 )
 
 
 if(WIN32)
     target_link_libraries(V-Engine 
-        imgui
         ${GLFW_LIB}
+        imgui
         Vulkan::Vulkan
         )
 

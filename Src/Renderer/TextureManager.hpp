@@ -13,7 +13,7 @@ class TextureManager{
     public:
         TextureManager(Device& device);
 
-        uint32_t addTexture(const std::string& filepath);
+        uint32_t addTexture(const std::string& filepath, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
 
         VkDescriptorSetLayout getLayout() const { return setLayout->getDescriptorSetLayout(); }
         VkDescriptorSet getDescriptorSet() const { return descriptorSet; }

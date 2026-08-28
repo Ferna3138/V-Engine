@@ -159,23 +159,23 @@ void Model::Builder::loadModel(const std::string& filename, TextureManager& text
         m.shininess     = material.shininess;
         m.illum         = material.illum;
 
-        auto resolveTexture = [&](const std::string& texName, int defaultIndex) -> int {
+        auto resolveTexture = [&](const std::string& texName, int defaultIndex, VkFormat format) -> int {
             if (texName.empty()) return defaultIndex;
             fs::path texFile = texDir / fs::path(texName).filename();
             if (fs::exists(texFile)) {
-                return static_cast<int>(textureManager.addTexture(texFile.string()));
+                return static_cast<int>(textureManager.addTexture(texFile.string(), format));
             }
             return defaultIndex;
         };
 
         // Load diffuse texture
-        m.diffuseTexID = resolveTexture(material.diffuse_texname, 1);
+        m.diffuseTexID = resolveTexture(material.diffuse_texname, 1, VK_FORMAT_R8G8B8A8_SRGB);
 
         // Load specular map
-        m.specularTexID = resolveTexture(material.specular_texname, 0);
+        m.specularTexID = resolveTexture(material.specular_texname, 0, VK_FORMAT_R8G8B8A8_SRGB );
 
         // Load normal map (bump_texname is used for normal in OBJ/MTL)
-        m.normalTexID = resolveTexture(material.bump_texname, 2);
+        m.normalTexID = resolveTexture(material.bump_texname, 2, VK_FORMAT_R8G8B8A8_UNORM);
 
         materials.emplace_back(m);
     }

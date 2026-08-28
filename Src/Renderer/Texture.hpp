@@ -8,7 +8,7 @@
 
 class Texture{
     public:
-        Texture(Device &device, const std::string &filepath);
+        Texture(Device &device, const std::string &filepath, VkFormat format);
         Texture(Device &device, int width, int height, uint8_t* _data, VkFormat format, VkImageUsageFlags usage);
         ~Texture();
 
