@@ -7,6 +7,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <stdexcept>
 #include <unordered_map>
 
 class TextureManager{

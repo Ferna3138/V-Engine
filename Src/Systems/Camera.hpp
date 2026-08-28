@@ -6,6 +6,21 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include "glm/glm.hpp"
 
+struct CamParameters{
+    glm::vec3 position = {0.f,0.f,0.f};
+    uint32_t sendor_width = 0;
+    uint32_t sendor_height = 0;
+    float focal_length = 0.f;
+    float fov = 0.f;
+    float near_plane = 0.f;
+    float far_plane = 0.f;
+    float aspect_ratio = 0.f;
+    float aperture = 0.f;
+    float focus_distance = 0.f;
+    float shutter_speed = 0.f;
+    float exposure = 0.f;
+    uint32_t white_balance = 0.f;
+};
 
 class Camera{
     public:

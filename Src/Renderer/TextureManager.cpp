@@ -30,6 +30,9 @@ TextureManager::TextureManager(Device& _device) : device{_device} {
 }
 
 uint32_t TextureManager::addTexture(const std::string& filepath, VkFormat format) {
+    if (nextIndex >= MAX_BINDLESS_TEXTURES) {
+        throw std::runtime_error("Maximum number of bindless textures reached.");
+    }
     auto it = pathToIndex.find(filepath);
     if (it != pathToIndex.end()) {
         return it->second;

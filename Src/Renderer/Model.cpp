@@ -180,9 +180,17 @@ void Model::Builder::loadModel(const std::string& filename, TextureManager& text
         materials.emplace_back(m);
     }
 
-    // If there were none, add a default
+    // Default material used when a face has no material assigned (material_id == -1)
+    // or when the obj has no materials at all. Uses the same reserved fallback slots
+    // (white/black/flat-normal) as resolveTexture, instead of the -1 sentinel that
+    // MaterialObj's default constructor would otherwise give.
+    MaterialObj defaultMaterial{};
+    defaultMaterial.diffuseTexID  = 1;
+    defaultMaterial.specularTexID = 0;
+    defaultMaterial.normalTexID   = 2;
+
     if(materials.empty())
-        materials.emplace_back(MaterialObj());
+        materials.emplace_back(defaultMaterial);
 
     const tinyobj::attrib_t& attrib = reader.GetAttrib();
 
@@ -217,7 +225,10 @@ void Model::Builder::loadModel(const std::string& filename, TextureManager& text
     }
 
     for (size_t t = 0; t < materialsIndices.size(); t++) {
-        const MaterialObj& mat = materials[materialsIndices[t]];
+        int32_t matId = materialsIndices[t];
+        const MaterialObj& mat = (matId >= 0 && static_cast<size_t>(matId) < materials.size())
+            ? materials[matId]
+            : defaultMaterial;
         for (int k = 0; k < 3; k++) {
             Vertex& v = vertices[3*t + k];
             v.textureIndex  = mat.diffuseTexID;
