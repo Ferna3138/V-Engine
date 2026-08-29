@@ -5,6 +5,7 @@
 #include "Renderer/Renderer.hpp"
 #include "Renderer/Descriptors.hpp"
 #include "Renderer/TextureManager.hpp"
+#include "ImGui_Setup.hpp"
 
 #include "Scene.hpp"
 
@@ -39,18 +40,17 @@ class FirstApp {
         void renderUI();
         VkDescriptorPool imguiPool;
         bool visualisePointLights = true;
-
-        void loadGameObjects();
         
+        void loadGameObjects();
         
         Window window{WIDTH, HEIGHT, "V-Engine"};
         Device device{window};
         Renderer renderer{window, device};
         TextureManager textureManager{device};
-
+        
         // Note: Order of declarations matters
         std::unique_ptr<DescriptorPool> globalPool;
-
+        
         Scene scene;
-
+        SceneHierarchyPanel sceneHierarchyPanel{scene};
 };

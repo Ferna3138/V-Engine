@@ -2,6 +2,7 @@
 
 #include "Renderer/Model.hpp"
 #include <memory>
+#include <string>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
@@ -10,6 +11,10 @@
 #include <glm/gtx/euler_angles.hpp>
 
 #include <Systems/Camera.hpp>
+
+struct TagComponent {
+    std::string name = "Entity";
+};
 
 struct TransformComponent{
         glm::vec3 translation{};
@@ -34,14 +39,25 @@ struct ModelComponent {
     std::shared_ptr<Model> model{};
 };
 
-
-
 // Lighting
+struct SpotLightComponent {
+    glm::vec4 colour;
+    float radius;
+    float innerCutoff;
+    float outerCutoff;
+};
+
+struct DirectionalLightComponent {
+    glm::vec4 colour;
+    glm::vec3 direction;
+};
+
 struct PointLightComponent {
     glm::vec4 colour;
     float radius;
 };
 
+// Camera
 struct CameraComponent {
     Camera camera;
 };

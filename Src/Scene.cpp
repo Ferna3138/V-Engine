@@ -7,6 +7,7 @@ entt::entity Scene::createEntity(const std::string& name) {
     auto entity = registry.create();
     registry.emplace<TransformComponent>(entity);
     // Optional: store the name in a NameComponent if you want to implement that
+    registry.emplace<TagComponent>(entity, TagComponent{name});
     return entity;
 }
 

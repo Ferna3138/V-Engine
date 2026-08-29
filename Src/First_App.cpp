@@ -79,15 +79,15 @@ void FirstApp::run() {
 
     setUpImgui();
 
-   
-   entt::entity cameraEntity = scene.getRegistry().create();
-   auto &cameraComponent = scene.getRegistry().emplace<CameraComponent>(cameraEntity);
-   auto &cameraTransform = scene.getRegistry().emplace<TransformComponent>(cameraEntity);
-   
-   cameraComponent.camera.setViewTarget(
-       glm::vec3(0.f, 0.f, -2.f),
-       glm::vec3(0.f, 0.f,  2.5f)
-    );
+
+    entt::entity cameraEntity = scene.createEntity("Camera");
+    auto &cameraComponent = scene.getRegistry().emplace<CameraComponent>(cameraEntity);
+    auto &cameraTransform = scene.getRegistry().get<TransformComponent>(cameraEntity);
+
+    cameraComponent.camera.setViewTarget(
+        glm::vec3(0.f, 0.f, -2.f),
+        glm::vec3(0.f, 0.f,  2.5f)
+        );
     
     cameraTransform.translation.z = 0.5f;
     KeyboardMovementController cameraController{};
@@ -245,6 +245,8 @@ void FirstApp::renderUI() {
     
     ImGui::Checkbox("Visualise Point Lights", &visualisePointLights);
 
+    sceneHierarchyPanel.draw();
+    /*
     // Cache lights in a list
     static int selectedLightIndex = 0;
     auto view = scene.getRegistry().view<TransformComponent, PointLightComponent>();
@@ -259,6 +261,7 @@ void FirstApp::renderUI() {
         lightEntities.push_back(entity);
     }
 
+    
     if (!lightEntities.empty()) {
         // Keep index valid if lights change
         if (selectedLightIndex >= static_cast<int>(lightEntities.size())) {
@@ -294,7 +297,7 @@ void FirstApp::renderUI() {
     } else {
         ImGui::Text("No point lights in scene.");
     }
-
+    */
 
     ImGui::End();
 
