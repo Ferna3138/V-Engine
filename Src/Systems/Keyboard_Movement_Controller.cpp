@@ -37,8 +37,8 @@ void KeyboardMovementController::mouseMove( GLFWwindow *window, float dt, entt::
         float xoffset = xpos - lastX;
         float yoffset = ypos - lastY;
 
-        yaw -= xoffset * lookSpeed * dt * 0.05f;
-        pitch += yoffset * lookSpeed * dt * 0.05f;
+        yaw -= xoffset * lookSpeed * 0.005f;
+        pitch += yoffset * lookSpeed * 0.005f;
     }
     updateRotation(transform);
 
@@ -51,13 +51,13 @@ void KeyboardMovementController::mouseMove( GLFWwindow *window, float dt, entt::
         glm::vec3 rightDir{cos(yaw), 0.f, -sin(yaw)};
         glm::vec3 upDir{0.f, 1.f, 0.f};
 
-        transform.translation -= rightDir * (xoffset * moveSpeed * dt * 0.1f);
-        transform.translation -= upDir * (yoffset * moveSpeed * dt * 0.1f);
+        transform.translation -= rightDir * (xoffset * moveSpeed * 0.005f);
+        transform.translation -= upDir * (yoffset * moveSpeed * 0.005f);
     }
 
     // Scroll wheel
     if (scrollOffset != 0.f) {
-        float zoomAmount = scrollOffset * moveSpeed * dt;
+        float zoomAmount = scrollOffset * moveSpeed * 0.1f;
 
         glm::vec3 forwardDir{sin(yaw), 0.f, cos(yaw)};
         transform.translation += forwardDir * zoomAmount;
