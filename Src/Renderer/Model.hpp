@@ -53,8 +53,8 @@ class Model{
         struct Builder{
             std::vector<Vertex> vertices{};
             std::vector<uint32_t> indices{};
-            std::vector<MaterialObj> materials;
-            std::vector<int32_t>     materialsIndices;
+            void loadObj(const std::string &filepath, TextureManager& textureManager);
+            void loadGltf(const std::string &filepath, TextureManager& textureManager);
             void loadModel(const std::string &filepath, TextureManager& textureManager);
         };
 
@@ -84,4 +84,5 @@ class Model{
 
         std::unique_ptr<Buffer> vertexBuffer;
         std::unique_ptr<Buffer> indexBuffer;
+
 };

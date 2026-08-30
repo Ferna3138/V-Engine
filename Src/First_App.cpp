@@ -90,6 +90,7 @@ void FirstApp::run() {
         );
     
     cameraTransform.translation.z = 0.5f;
+    cameraTransform.translation.y = 1.5f;
     KeyboardMovementController cameraController{};
 
 
@@ -171,13 +172,14 @@ void FirstApp::run() {
 
 
 void FirstApp::loadGameObjects() {
-    std::shared_ptr<Model> model = Model::createModelFromFile(device, textureManager, "Models/Sponza_obj/sponza.obj");
+    //std::shared_ptr<Model> model = Model::createModelFromFile(device, textureManager, "Models/Sponza_obj/sponza.obj");
+    std::shared_ptr<Model> model = Model::createModelFromFile(device, textureManager, "Models/GLTF/Sponza/glTF/Sponza.gltf");
 
     entt::entity sponza = scene.createModelEntity(model);
     auto& sponzaTransform = scene.getRegistry().get<TransformComponent>(sponza);
-    sponzaTransform.translation = {0.0f, 2.0f, 0.0f};
-    sponzaTransform.scale = glm::vec3{-0.01f, -0.01f, -0.01f};
-
+    sponzaTransform.translation = {0.0f, 0.0f, 0.0f};
+    sponzaTransform.scale = glm::vec3{1.f, 1.f, 1.f};
+    
 
     std::vector<glm::vec3> lightColors{
         {0.956f, 0.262f, 0.211f},  // Soft red (sunset red)
@@ -190,14 +192,14 @@ void FirstApp::loadGameObjects() {
 
     for (size_t i = 0; i < lightColors.size(); i++) {
         entt::entity light = scene.createPointLight(
-            glm::vec4(lightColors[i], 3.0f), // RGB + intensity in .w
+            glm::vec4(lightColors[i], 1.0f), // RGB + intensity in .w
             0.2f
         );
         auto rotateLight = glm::rotate(glm::mat4(1.f), (i * glm::two_pi<float>() / lightColors.size()), glm::vec3(0.f, -1.f, 0.f));
 
         auto& lightTransform = scene.getRegistry().get<TransformComponent>(light);
         //lightTransform.translation = {static_cast<float>(i) * 2.0f, -5.0f, 0.0f};
-        lightTransform.translation = glm::vec3(rotateLight * glm::vec4(-1.f, -1.f, -1.f, 1.f));
+        lightTransform.translation = glm::vec3(rotateLight * glm::vec4(-1.f, 1.5f, -1.f, 1.f));
     }
 
 }

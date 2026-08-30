@@ -38,7 +38,7 @@ void KeyboardMovementController::mouseMove( GLFWwindow *window, float dt, entt::
         float yoffset = ypos - lastY;
 
         yaw -= xoffset * lookSpeed * 0.005f;
-        pitch += yoffset * lookSpeed * 0.005f;
+        pitch -= yoffset * lookSpeed * 0.005f;
     }
     updateRotation(transform);
 
@@ -52,7 +52,7 @@ void KeyboardMovementController::mouseMove( GLFWwindow *window, float dt, entt::
         glm::vec3 upDir{0.f, 1.f, 0.f};
 
         transform.translation -= rightDir * (xoffset * moveSpeed * 0.005f);
-        transform.translation -= upDir * (yoffset * moveSpeed * 0.005f);
+        transform.translation += upDir * (yoffset * moveSpeed * 0.005f);
     }
 
     // Scroll wheel
@@ -86,14 +86,14 @@ void KeyboardMovementController::moveInPlaneXZ(GLFWwindow *window, float dt, ent
 
     if (glm::dot(rotate, rotate) > std::numeric_limits<float>::epsilon()) {
         yaw += lookSpeed * dt * rotate.y;
-        pitch += lookSpeed * dt * rotate.x;
+        pitch -= lookSpeed * dt * rotate.x;
     }
 
     updateRotation(transform);
 
     const glm::vec3 forwardDir{sin(yaw), 0.f, cos(yaw)};
     const glm::vec3 rightDir{forwardDir.z, 0.f, -forwardDir.x};
-    const glm::vec3 upDir{0.f, -1.f, 0.f};
+    const glm::vec3 upDir{0.f, 1.f, 0.f};
 
     glm::vec3 moveDir{0.f};
     if (glfwGetKey(window, keys.moveForward) == GLFW_PRESS) moveDir += forwardDir;

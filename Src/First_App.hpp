@@ -10,7 +10,7 @@
 #include "Scene.hpp"
 
 // ImGui
-#define IMGUI_ENABLE_DOCKING
+//#define IMGUI_ENABLE_DOCKING
 #include <imgui/imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>

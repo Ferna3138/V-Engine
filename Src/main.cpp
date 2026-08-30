@@ -3,11 +3,8 @@
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
-#include "Renderer/GLTF_Loader.hpp"
 
 int main(){
-    //GLTF_Smoke smoke;
-    //smoke.GLTF_SmokeTest("Models/GLTF/Duck/glTF/Duck.gltf");
     FirstApp app{};
     
     
