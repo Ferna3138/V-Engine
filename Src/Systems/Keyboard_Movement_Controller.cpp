@@ -37,9 +37,10 @@ void KeyboardMovementController::mouseMove( GLFWwindow *window, float dt, entt::
         float xoffset = xpos - lastX;
         float yoffset = ypos - lastY;
 
-        transform.rotation.y -= xoffset * lookSpeed * dt * 0.05f;
-        transform.rotation.x += yoffset * lookSpeed * dt * 0.05f;
+        yaw -= xoffset * lookSpeed * dt * 0.05f;
+        pitch += yoffset * lookSpeed * dt * 0.05f;
     }
+    updateRotation(transform);
 
 
     // Right button: pan camera (move in X and Y plane)
@@ -47,7 +48,6 @@ void KeyboardMovementController::mouseMove( GLFWwindow *window, float dt, entt::
         float xoffset = xpos - lastX;
         float yoffset = ypos - lastY;
 
-        float yaw = transform.rotation.y;
         glm::vec3 rightDir{cos(yaw), 0.f, -sin(yaw)};
         glm::vec3 upDir{0.f, 1.f, 0.f};
 
@@ -59,7 +59,6 @@ void KeyboardMovementController::mouseMove( GLFWwindow *window, float dt, entt::
     if (scrollOffset != 0.f) {
         float zoomAmount = scrollOffset * moveSpeed * dt;
 
-        float yaw = transform.rotation.y;
         glm::vec3 forwardDir{sin(yaw), 0.f, cos(yaw)};
         transform.translation += forwardDir * zoomAmount;
 
@@ -86,10 +85,12 @@ void KeyboardMovementController::moveInPlaneXZ(GLFWwindow *window, float dt, ent
     if (glfwGetKey(window, keys.lookDown)  == GLFW_PRESS) rotate.x -= 1.f;
 
     if (glm::dot(rotate, rotate) > std::numeric_limits<float>::epsilon()) {
-        transform.rotation += lookSpeed * dt * glm::normalize(rotate);
+        yaw += lookSpeed * dt * rotate.y;
+        pitch += lookSpeed * dt * rotate.x;
     }
 
-    float yaw = transform.rotation.y;
+    updateRotation(transform);
+
     const glm::vec3 forwardDir{sin(yaw), 0.f, cos(yaw)};
     const glm::vec3 rightDir{forwardDir.z, 0.f, -forwardDir.x};
     const glm::vec3 upDir{0.f, -1.f, 0.f};
@@ -114,4 +115,9 @@ void KeyboardMovementController::scrollCallback(GLFWwindow* /*window*/, double /
 
 void KeyboardMovementController::bindScrollCallback(GLFWwindow* window) {
     glfwSetScrollCallback(window, KeyboardMovementController::scrollCallback);
+}
+
+void KeyboardMovementController::updateRotation(TransformComponent& transform) {
+    transform.rotation = glm::angleAxis(yaw, glm::vec3(0.f, 1.f, 0.f))
+                        * glm::angleAxis(pitch, glm::vec3(1.f, 0.f, 0.f));
 }

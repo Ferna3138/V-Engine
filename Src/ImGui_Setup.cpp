@@ -37,8 +37,14 @@ void SceneHierarchyPanel::draw() {
         ImGui::PopID();
     }
 
-    drawInspector();
     ImGui::End();
+    
+    drawInspector();
+
+    if (entityToDelete != entt::null) {
+        scene.getRegistry().destroy(entityToDelete);
+        entityToDelete = entt::null;
+    }
 }
 
 void SceneHierarchyPanel::drawInspector(){
@@ -50,28 +56,40 @@ void SceneHierarchyPanel::drawInspector(){
     }
 
     auto& registry = scene.getRegistry();
+    auto& transform = registry.get<TransformComponent>(selectedEntity);
+    if (cachedRotationEntity != selectedEntity) {
+        editedEulerDegrees = glm::degrees(glm::eulerAngles(transform.rotation));
+        cachedRotationEntity = selectedEntity;
+    }
     
+    if (auto* tag = registry.try_get<TagComponent>(selectedEntity)) 
+        ImGui::Text("%s", tag->name.c_str());
+    
+    ImGui::SliderFloat3("Position", &transform.translation.x, -10.0f, 10.0f);
+    
+    if (ImGui::DragFloat3("Rotation", &editedEulerDegrees.x, 0.5f, -180.f, 180.f))
+        transform.rotation = glm::quat(glm::radians(editedEulerDegrees));    
+
     if (auto* light = registry.try_get<PointLightComponent>(selectedEntity)) {
         ImGui::Separator();
-        ImGui::Text("Point Light");
         ImGui::ColorEdit3("Color", &light->colour.x);
         ImGui::SliderFloat("Intensity", &light->colour.w, 0.0f, 50.0f);
         ImGui::DragFloat("Radius", &light->radius, 0.01f, 0.0f, 5.0f);
-
-        ImGui::SliderFloat3("Position", &registry.try_get<TransformComponent>(selectedEntity)->translation.x, -10.0f, 10.0f);
     }
     
     if (auto* camera = registry.try_get<CameraComponent>(selectedEntity)){
         ImGui::Separator();
-        ImGui::Text("Camera");
-        ImGui::SliderFloat3("Position", &registry.try_get<TransformComponent>(selectedEntity)->translation.x, -10.0f, 10.0f);
+    }
+    
+    if (auto* model = registry.try_get<ModelComponent>(selectedEntity)){
+        ImGui::SliderFloat3("Scale", &transform.scale.x, 0.0f, 10.0f);
+        ImGui::Separator();
     }
 
-    if (auto* model = registry.try_get<ModelComponent>(selectedEntity)){
-        ImGui::Separator();
-        ImGui::Text(registry.try_get<TagComponent>(selectedEntity) -> name.c_str());
-        ImGui::SliderFloat3("Position", &registry.try_get<TransformComponent>(selectedEntity)->translation.x, -10.0f, 10.0f);
+    if (ImGui::Button("Delete")) {
+        entityToDelete = selectedEntity;
     }
 
     ImGui::End();
+
 }

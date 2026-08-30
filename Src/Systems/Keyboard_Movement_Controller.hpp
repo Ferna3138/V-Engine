@@ -36,6 +36,11 @@ private:
     double lastX = 0.0;
     double lastY = 0.0;
 
+    float yaw = 0.f;
+    float pitch = 0.f;
+
     inline static float scrollOffset = 0.f;
     static void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+
+    void updateRotation(TransformComponent& transform);
 };

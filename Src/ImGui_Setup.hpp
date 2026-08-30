@@ -11,5 +11,9 @@ public:
 private:
     Scene& scene;
     entt::entity selectedEntity{entt::null};
+    entt::entity entityToDelete{entt::null};
+
+    entt::entity cachedRotationEntity{entt::null};
+    glm::vec3 editedEulerDegrees{0.f};
     void drawInspector();
 };

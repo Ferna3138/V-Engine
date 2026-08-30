@@ -8,7 +8,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/transform.hpp>
-#include <glm/gtx/euler_angles.hpp>
+#include <glm/gtc/quaternion.hpp>
+//#include <glm/gtx/quaternion.hpp>
 
 #include <Systems/Camera.hpp>
 
@@ -19,12 +20,12 @@ struct TagComponent {
 struct TransformComponent{
         glm::vec3 translation{};
         glm::vec3 scale{1.f, 1.f, 1.f};
-        glm::vec3 rotation{0.f}; // in radians
+        glm::quat rotation{1.0f, 0.0f, 0.0f, 0.0f}; // in radians
 };
 
 inline glm::mat4 toMat4(const TransformComponent &transform) {
     glm::mat4 translation = glm::translate(glm::mat4{1.0f}, transform.translation);
-    glm::mat4 rotation = glm::eulerAngleYXZ(transform.rotation.y, transform.rotation.x, transform.rotation.z);
+    glm::mat4 rotation = glm::mat4_cast(transform.rotation);
     glm::mat4 scale = glm::scale(glm::mat4{1.0f}, transform.scale);
 
     return translation * rotation * scale;

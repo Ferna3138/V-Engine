@@ -113,7 +113,7 @@ void FirstApp::run() {
         cameraController.bindScrollCallback(window.getGLFWwindow());
 
         auto &camTransform = scene.getRegistry().get<TransformComponent>(cameraEntity);
-        cameraComponent.camera.setViewYXZ(camTransform.translation, camTransform.rotation);
+        cameraComponent.camera.setView(camTransform.translation, camTransform.rotation);
 
         float aspect = renderer.getAspectRatio();
         cameraComponent.camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
@@ -246,62 +246,7 @@ void FirstApp::renderUI() {
     ImGui::Checkbox("Visualise Point Lights", &visualisePointLights);
 
     sceneHierarchyPanel.draw();
-    /*
-    // Cache lights in a list
-    static int selectedLightIndex = 0;
-    auto view = scene.getRegistry().view<TransformComponent, PointLightComponent>();
-    
-    std::size_t count = static_cast<std::size_t>(std::distance(view.begin(), view.end()));
-
-    std::vector<entt::entity> lightEntities;
-    lightEntities.clear();
-    lightEntities.reserve(count);
-
-    for (auto entity : view) {
-        lightEntities.push_back(entity);
-    }
-
-    
-    if (!lightEntities.empty()) {
-        // Keep index valid if lights change
-        if (selectedLightIndex >= static_cast<int>(lightEntities.size())) {
-            selectedLightIndex = static_cast<int>(lightEntities.size()) - 1;
-        }
-
-        // Light selection combo
-        std::string previewName = "Light " + std::to_string(selectedLightIndex);
-        if (ImGui::BeginCombo("Select Light", previewName.c_str())) {
-            for (int i = 0; i < static_cast<int>(lightEntities.size()); i++) {
-                bool isSelected = (selectedLightIndex == i);
-                std::string name = "Light " + std::to_string(i);
-                if (ImGui::Selectable(name.c_str(), isSelected)) {
-                    selectedLightIndex = i;
-                }
-                if (isSelected) {
-                    ImGui::SetItemDefaultFocus();
-                }
-            }
-            ImGui::EndCombo();
-        }
-
-        // Draw controls for selected light
-        entt::entity selectedEntity = lightEntities[selectedLightIndex];
-        auto &transform = view.get<TransformComponent>(selectedEntity);
-        auto &light = view.get<PointLightComponent>(selectedEntity);
-
-        ImGui::Separator();
-        ImGui::Text("Editing Light %d", selectedLightIndex);
-        ImGui::SliderFloat3("Position", &transform.translation.x, -10.0f, 10.0f);
-        ImGui::SliderFloat("Intensity", &light.colour.w, 0.0f, 50.0f);
-        ImGui::ColorEdit3("Color", &light.colour.x);
-    } else {
-        ImGui::Text("No point lights in scene.");
-    }
-    */
-
     ImGui::End();
-
-
     ImGui::Render();
 }
 
