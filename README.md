@@ -2,8 +2,6 @@
 
 Roadmap
 
-- Bindless Textures
-
 - Ray Tracing Pipeline
 
 - TLAS & BLAS
