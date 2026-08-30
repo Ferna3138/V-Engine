@@ -425,12 +425,6 @@ void Model::Builder::loadGltf(const std::string& filepath, TextureManager& textu
     const tg3_scene& scene = model->scenes[sceneIdx];
     for (uint32_t i = 0; i < scene.nodes_count; i++)
         collectMeshNodes(model.get(), scene.nodes[i], glm::mat4(1.0f), meshNodes);
-    
-    /*
-    std::cout << "glTF mesh nodes found: " << meshNodes.size() << std::endl;
-    for (auto& [meshIdx, transform] : meshNodes) {
-        std::cout << "  mesh " << meshIdx << " transform:\n" << glm::to_string(transform) << std::endl;
-    }*/
 
     for (auto& [meshIndex, worldTransform] : meshNodes) {
         glm::mat3 normalMatrix = glm::mat3(glm::transpose(glm::inverse(worldTransform)));
