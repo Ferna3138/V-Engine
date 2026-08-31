@@ -50,18 +50,31 @@ class Pipeline {
         static void defaultPipelineConfigInfo(PipelineConfigInfo& configInfo);
         static void enableAlphaBlending(PipelineConfigInfo& configInfo);
 
-    private:
         static std::vector<char> readFile(const std::string& filepath);
+        static void createShaderModule(Device& device, const std::vector<char>& code, VkShaderModule* shaderModule);
+
+    private:
 
         void createGraphicsPipeline(
             const std::string& vertFilepath,
             const std::string& fragFilepath,
             const PipelineConfigInfo& configInfo);
 
-        void createShaderModule(const std::vector<char>& code, VkShaderModule* shaderModule);
 
         Device& device;
         VkPipeline graphicsPipeline;
         VkShaderModule vertShaderModule;
         VkShaderModule fragShaderModule;
+};
+
+
+class ComputePipeline {
+    public:
+        ComputePipeline(Device& device, const std::string& compFilepath, VkPipelineLayout layout);
+        ~ComputePipeline();
+        void bind(VkCommandBuffer commandBuffer);
+    private:
+        Device& device;
+        VkPipeline computePipeline;
+        VkShaderModule compShaderModule;
 };

@@ -46,10 +46,14 @@ class Device {
         Device &operator=(Device &&) = delete;
 
         VkCommandPool getCommandPool() { return commandPool; }
+        VkPipelineCache getPipelineCache() { return pipelineCache; }
         VkDevice device() { return device_; }
         VkSurfaceKHR surface() { return surface_; }
         VkQueue graphicsQueue() { return graphicsQueue_; }
         VkQueue presentQueue() { return presentQueue_; }
+
+        void createPipelineCache();
+        void savePipelineCache();
 
         SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(physicalDevice); }
         uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
@@ -130,6 +134,8 @@ class Device {
                                                     };
         #endif
 
+        VkPipelineCache pipelineCache = VK_NULL_HANDLE;
+        static inline const std::string pipelineCachePath = "pipeline_cache.bin";
 
         VkPhysicalDeviceAccelerationStructureFeaturesKHR accelFeature{
             VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR

@@ -404,3 +404,5 @@ build/
 
 
 Models/GLTF
+
+pipeline_cache.bin

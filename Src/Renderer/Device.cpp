@@ -5,6 +5,7 @@
 #include <iostream>
 #include <set>
 #include <unordered_set>
+#include <fstream>
 
 // local callback functions
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
@@ -42,6 +43,53 @@ void DestroyDebugUtilsMessengerEXT(
     }
 }
 
+void Device::createPipelineCache() {
+    std::vector<char> cacheData;
+    bool cacheValid = false;
+
+    std::ifstream file{pipelineCachePath, std::ios::ate | std::ios::binary};
+    if (file.is_open()) {
+        size_t fileSize = static_cast<size_t>(file.tellg());
+        if (fileSize >= sizeof(VkPipelineCacheHeaderVersionOne)) {
+            cacheData.resize(fileSize);
+            file.seekg(0);
+            file.read(cacheData.data(), fileSize);
+
+            auto* header = reinterpret_cast<VkPipelineCacheHeaderVersionOne*>(cacheData.data());
+            cacheValid =
+                header->deviceID == properties.deviceID &&
+                header->vendorID == properties.vendorID &&
+                memcmp(header->pipelineCacheUUID, properties.pipelineCacheUUID, VK_UUID_SIZE) == 0;
+        }
+    }
+
+    VkPipelineCacheCreateInfo createInfo{VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};
+    if (cacheValid) {
+        createInfo.initialDataSize = cacheData.size();
+        createInfo.pInitialData = cacheData.data();
+    }
+
+    if (vkCreatePipelineCache(device_, &createInfo, nullptr, &pipelineCache) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create pipeline cache");
+    }
+}
+
+void Device::savePipelineCache() {
+    size_t dataSize = 0;
+    vkGetPipelineCacheData(device_, pipelineCache, &dataSize, nullptr);
+
+    std::vector<char> data(dataSize);
+    vkGetPipelineCacheData(device_, pipelineCache, &dataSize, data.data());
+
+    std::ofstream file{pipelineCachePath, std::ios::binary};
+    file.write(data.data(), data.size());
+
+    vkDestroyPipelineCache(device_, pipelineCache, nullptr);
+}
+
+
+
+
 // class member functions
 Device::Device(Window &window) : window{window} {
     createInstance();
@@ -50,9 +98,11 @@ Device::Device(Window &window) : window{window} {
     pickPhysicalDevice();
     createLogicalDevice();
     createCommandPool();
+    createPipelineCache();
 }
 
 Device::~Device() {
+    savePipelineCache();  
     vkDestroyCommandPool(device_, commandPool, nullptr);
     vkDestroyDevice(device_, nullptr);
 

@@ -54,8 +54,8 @@ void Pipeline::createGraphicsPipeline(
   auto vertCode = readFile(vertFilepath);
   auto fragCode = readFile(fragFilepath);
 
-  createShaderModule(vertCode, &vertShaderModule);
-  createShaderModule(fragCode, &fragShaderModule);
+  createShaderModule(device, vertCode, &vertShaderModule);
+  createShaderModule(device, fragCode, &fragShaderModule);
 
   VkPipelineShaderStageCreateInfo shaderStages[2];
   shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -105,7 +105,7 @@ void Pipeline::createGraphicsPipeline(
 
   if (vkCreateGraphicsPipelines(
           device.device(),
-          VK_NULL_HANDLE,
+          device.getPipelineCache(),
           1,
           &pipelineInfo,
           nullptr,
@@ -114,7 +114,9 @@ void Pipeline::createGraphicsPipeline(
   }
 }
 
-void Pipeline::createShaderModule(const std::vector<char>& code, VkShaderModule* shaderModule) {
+void Pipeline::createShaderModule(Device& device,
+                                const std::vector<char>& code,
+                                VkShaderModule* shaderModule) {
   VkShaderModuleCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
   createInfo.codeSize = code.size();
@@ -215,4 +217,48 @@ void Pipeline::enableAlphaBlending(PipelineConfigInfo& configInfo) {
     configInfo.colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     configInfo.colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
     configInfo.colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;            
+}
+
+
+ComputePipeline::ComputePipeline(Device& device, const std::string& compFilepath, VkPipelineLayout layout)
+    : device{device} {
+    auto shaderCode = Pipeline::readFile(compFilepath);
+
+    Pipeline::createShaderModule(device, shaderCode, &compShaderModule);
+
+    
+    VkPipelineShaderStageCreateInfo shaderStages[1];
+    shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shaderStages[0].stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    shaderStages[0].module = compShaderModule;
+    shaderStages[0].pName = "main";
+    shaderStages[0].flags = 0;
+    shaderStages[0].pNext = nullptr;
+    shaderStages[0].pSpecializationInfo = nullptr;
+
+    VkComputePipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipelineInfo.stage = shaderStages[0];
+    pipelineInfo.layout = layout;
+    pipelineInfo.basePipelineIndex = -1;
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+
+    if (vkCreateComputePipelines(device.device(), 
+                                device.getPipelineCache(), 
+                                1, 
+                                &pipelineInfo, 
+                                nullptr, 
+                                &computePipeline) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create compute pipeline");
+    }
+}
+
+ComputePipeline::~ComputePipeline() {
+  vkDestroyShaderModule(device.device(), compShaderModule, nullptr);
+  vkDestroyPipeline(device.device(), computePipeline, nullptr);
+}
+
+void ComputePipeline::bind(VkCommandBuffer commandBuffer) {
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline);
 }
