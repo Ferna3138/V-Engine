@@ -46,6 +46,15 @@ FirstApp::FirstApp() {
 
     loadGameObjects();
 
+    frameGraph.parse("Src/Frame_Graphs/example.json");
+    frameGraph.compile();
+    frameGraph.createResources(device);
+    frameGraph.createRenderPasses(device);
+
+    frameGraph.registerRenderPass("depth_pre_pass", [](VkCommandBuffer) {
+        // proof of dispatch — real geometry rendering into this pass is future work
+    });
+
 }
 
 FirstApp::~FirstApp() {
@@ -60,7 +69,6 @@ FirstApp::~FirstApp() {
 
 
 void FirstApp::run() {
-
     std::vector<std::unique_ptr<Buffer>> uboBuffers(SwapChain::MAX_FRAMES_IN_FLIGHT);
     for(int i = 0; i < SwapChain::MAX_FRAMES_IN_FLIGHT; i++) {
         uboBuffers[i] = std::make_unique<Buffer>(
@@ -161,6 +169,8 @@ void FirstApp::run() {
             uboBuffers[frameIndex]->flush();
             
             renderUI();
+            
+            frameGraph.execute(commandBuffer);
 
             // Render
             renderer.beginSwapChainRenderPass(commandBuffer);

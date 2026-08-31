@@ -5,6 +5,7 @@
 #include "Renderer/Renderer.hpp"
 #include "Renderer/Descriptors.hpp"
 #include "Renderer/TextureManager.hpp"
+#include "Renderer/Frame_Graph.hpp"
 #include "ImGui_Setup.hpp"
 
 #include "Scene.hpp"
@@ -73,6 +74,7 @@ class FirstApp {
         Renderer renderer{window, device};
         AsyncLoader asyncLoader = AsyncLoader(device);
         TextureManager textureManager{device, asyncLoader};
+        FrameGraph frameGraph;
         
         IOThreadLoopTask ioThreadLoopTask;
         AsyncLoadTask asyncLoadTask;
