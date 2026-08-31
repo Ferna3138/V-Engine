@@ -65,7 +65,7 @@ void SceneHierarchyPanel::drawInspector(){
     if (auto* tag = registry.try_get<TagComponent>(selectedEntity)) 
         ImGui::Text("%s", tag->name.c_str());
     
-    ImGui::SliderFloat3("Position", &transform.translation.x, -10.0f, 10.0f);
+    ImGui::DragFloat3("Position", &transform.translation.x, 0.1f, -50.0f, 50.0f);
     
     if (ImGui::DragFloat3("Rotation", &editedEulerDegrees.x, 0.5f, -180.f, 180.f))
         transform.rotation = glm::quat(glm::radians(editedEulerDegrees));    

@@ -243,6 +243,7 @@ void FirstApp::run() {
 void FirstApp::loadGameObjects() {
     //std::shared_ptr<Model> model = Model::createModelFromFile(device, textureManager, "Models/Sponza_obj/sponza.obj");
     std::shared_ptr<Model> model = Model::createModelFromFile(device, textureManager, "Models/GLTF/Sponza/glTF/Sponza.gltf");
+    //std::shared_ptr<Model> model = Model::createModelFromFile(device, textureManager, "Models/GLTF/Sibenik/scene.gltf");
 
     if (model) {
         entt::entity sponza = scene.createModelEntity(model);
