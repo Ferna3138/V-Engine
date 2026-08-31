@@ -1,5 +1,6 @@
 // Frame_Graph.cpp
 #include "Frame_Graph.hpp"
+#include "Utils/AssetPath.hpp"
 #include <stdexcept>
 
 uint32_t FrameGraph::addNode(const std::string& name,
@@ -137,9 +138,13 @@ static FrameGraphResourceDesc parseResourceDesc(const json& resJson) {
 }
 
 void FrameGraph::parse(const std::string& jsonFilePath) {
-    std::ifstream file(jsonFilePath);
+    // Resolve against the project root so it loads regardless of the working
+    // directory the terminal / debugger starts us in.
+    std::string resolvedPath = vengine::resolveAssetPath(jsonFilePath);
+    std::ifstream file(resolvedPath);
     if (!file.is_open()) {
-        throw std::runtime_error("Failed to open frame graph JSON: " + jsonFilePath);
+        throw std::runtime_error("Failed to open frame graph JSON: " + jsonFilePath +
+                                 " (resolved to " + resolvedPath + ")");
     }
 
     json root;

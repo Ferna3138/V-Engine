@@ -406,3 +406,10 @@ build/
 Models/GLTF
 
 pipeline_cache.bin
+
+# ImGui layout: only the shared file at the repo root (and per-app layouts
+# under Config/) are tracked. Stray imgui.ini files written into run/build
+# folders are ignored.
+imgui.ini
+!/imgui.ini
+!/Config/*.imgui.ini

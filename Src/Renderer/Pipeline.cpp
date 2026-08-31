@@ -1,5 +1,6 @@
 #include "Pipeline.hpp"
 
+#include "Utils/AssetPath.hpp"
 
 #include <fstream>
 #include <stdexcept>
@@ -24,10 +25,13 @@ Pipeline::~Pipeline() {
 }
 
 std::vector<char> Pipeline::readFile(const std::string& filepath) {
-  std::ifstream file{filepath, std::ios::ate | std::ios::binary};
+  // Resolve against the project root so shaders load regardless of the working
+  // directory the terminal / debugger starts us in.
+  std::string resolvedPath = vengine::resolveAssetPath(filepath);
+  std::ifstream file{resolvedPath, std::ios::ate | std::ios::binary};
 
   if (!file.is_open()) {
-    throw std::runtime_error("failed to open file: " + filepath);
+    throw std::runtime_error("failed to open file: " + filepath + " (resolved to " + resolvedPath + ")");
   }
 
   size_t fileSize = static_cast<size_t>(file.tellg());

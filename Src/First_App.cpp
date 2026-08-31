@@ -6,6 +6,7 @@
 #include "Render_Systems/Point_Light_System.hpp"
 #include "Renderer/Buffer.hpp"
 #include "Renderer/Texture.hpp"
+#include "Utils/AssetPath.hpp"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -232,7 +233,7 @@ void FirstApp::run() {
     }
 
     vkDeviceWaitIdle(device.device());
-    ImGui::SaveIniSettingsToDisk("imgui.ini");
+    ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
 
 }
 
@@ -348,7 +349,11 @@ void FirstApp::setUpImgui() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
-    ImGui::GetIO().IniFilename = "imgui.ini"; // Optional, defaults to this
+    // Persist the ImGui layout at a fixed, project-root location so it isn't
+    // reset when the app is launched from a different folder. Pass an app name
+    // to imguiIniPath() to give this app its own dedicated layout instead.
+    imguiIniFilePath = vengine::imguiIniPath();
+    ImGui::GetIO().IniFilename = imguiIniFilePath.c_str();
 
 
     // Enable Docking + Viewports

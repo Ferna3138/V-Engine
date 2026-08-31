@@ -23,6 +23,7 @@
 #include <memory>
 #include <vector>
 #include <iostream>
+#include <string>
 
 struct IOThreadLoopTask : enki::IPinnedTask {
     void Execute() override {
@@ -63,6 +64,9 @@ class FirstApp {
         void setUpImgui();
         void renderUI();
         VkDescriptorPool imguiPool;
+        // Backs ImGuiIO::IniFilename (ImGui keeps the pointer, so this must
+        // outlive the ImGui context). Empty appName -> shared default imgui.ini.
+        std::string imguiIniFilePath;
         bool visualisePointLights = true;
         
         void loadGameObjects();

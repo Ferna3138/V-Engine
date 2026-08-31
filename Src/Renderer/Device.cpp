@@ -1,5 +1,7 @@
 #include "Device.hpp"
 
+#include "Utils/AssetPath.hpp"
+
 // std headers
 #include <cstring>
 #include <iostream>
@@ -63,7 +65,7 @@ void Device::createPipelineCache() {
     std::vector<char> cacheData;
     bool cacheValid = false;
 
-    std::ifstream file{pipelineCachePath, std::ios::ate | std::ios::binary};
+    std::ifstream file{vengine::resolveAssetPath(pipelineCachePath), std::ios::ate | std::ios::binary};
     if (file.is_open()) {
         size_t fileSize = static_cast<size_t>(file.tellg());
         if (fileSize >= sizeof(VkPipelineCacheHeaderVersionOne)) {
@@ -97,7 +99,7 @@ void Device::savePipelineCache() {
     std::vector<char> data(dataSize);
     vkGetPipelineCacheData(device_, pipelineCache, &dataSize, data.data());
 
-    std::ofstream file{pipelineCachePath, std::ios::binary};
+    std::ofstream file{vengine::resolveAssetPath(pipelineCachePath), std::ios::binary};
     file.write(data.data(), data.size());
 
     vkDestroyPipelineCache(device_, pipelineCache, nullptr);

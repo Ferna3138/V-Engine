@@ -1,6 +1,7 @@
 #include "Model.hpp"
 
 #include "Utils/Utils.hpp"
+#include "Utils/AssetPath.hpp"
 
 // libs
 #define TINYGLTF3_IMPLEMENTATION
@@ -28,8 +29,17 @@ Model::Model(Device& _device, const Model::Builder &builder) : device{_device} {
 Model::~Model() { }
 
 std::unique_ptr<Model> Model::createModelFromFile(Device& device, TextureManager& textureManager, const std::string &filepath) {
+    // Resolve against the project root so the model loads regardless of the
+    // working directory the terminal / debugger starts us in.
+    std::string resolvedPath = vengine::resolveAssetPath(filepath);
+    if (!fs::exists(resolvedPath)) {
+        throw std::runtime_error(
+            "Model file not found: \"" + filepath + "\" (resolved to \"" + resolvedPath +
+            "\", project root \"" + vengine::projectRoot().string() + "\")");
+    }
+
     Builder builder{};
-    builder.loadModel(filepath, textureManager);
+    builder.loadModel(resolvedPath, textureManager);
     return std::make_unique<Model>(device, builder);
 }
 
