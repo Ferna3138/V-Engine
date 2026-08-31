@@ -3,6 +3,8 @@
 #include "Device.hpp"
 #include "Renderer/Descriptors.hpp"
 #include "Renderer/Texture.hpp"
+#include "Renderer/Async_Loader.hpp"
+
 // std
 #include <string>
 #include <memory>
@@ -12,7 +14,8 @@
 
 class TextureManager{
     public:
-        TextureManager(Device& device);
+        TextureManager(Device& device, AsyncLoader& loader);
+        void update();
 
         uint32_t addTexture(const std::string& filepath, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
 
@@ -38,4 +41,8 @@ class TextureManager{
         static constexpr uint32_t MAX_BINDLESS_TEXTURES = 1024;
 
         void writeTextureToSlot(Texture&, uint32_t slot);
+
+        AsyncLoader& loader;
+        struct PendingTexture { Texture* texture; uint32_t slot; };
+        std::unordered_map<VkImage, PendingTexture> pendingTextures;
     };

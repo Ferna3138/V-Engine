@@ -220,10 +220,22 @@ void Pipeline::enableAlphaBlending(PipelineConfigInfo& configInfo) {
 }
 
 
+
+// Compute Pipelines
+
 ComputePipeline::ComputePipeline(Device& device, const std::string& compFilepath, VkPipelineLayout layout)
     : device{device} {
-    auto shaderCode = Pipeline::readFile(compFilepath);
+    createComputePipeline(device, compFilepath, layout);
+}
 
+ComputePipeline::~ComputePipeline() {
+  vkDestroyShaderModule(device.device(), compShaderModule, nullptr);
+  vkDestroyPipeline(device.device(), computePipeline, nullptr);
+}
+
+
+void ComputePipeline::createComputePipeline(Device& device, const std::string& compFilepath, VkPipelineLayout layout){
+    auto shaderCode = Pipeline::readFile(compFilepath);
     Pipeline::createShaderModule(device, shaderCode, &compShaderModule);
 
     
@@ -252,11 +264,6 @@ ComputePipeline::ComputePipeline(Device& device, const std::string& compFilepath
                                 &computePipeline) != VK_SUCCESS) {
         throw std::runtime_error("failed to create compute pipeline");
     }
-}
-
-ComputePipeline::~ComputePipeline() {
-  vkDestroyShaderModule(device.device(), compShaderModule, nullptr);
-  vkDestroyPipeline(device.device(), computePipeline, nullptr);
 }
 
 void ComputePipeline::bind(VkCommandBuffer commandBuffer) {

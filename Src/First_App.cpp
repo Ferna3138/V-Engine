@@ -25,6 +25,19 @@
 
 
 FirstApp::FirstApp() {
+    enki::TaskSchedulerConfig config;
+    config.numTaskThreadsToCreate = enki::GetNumHardwareThreads();  // default is -1; this reserves one extra
+    taskScheduler.Initialize(config);
+
+    ioThreadLoopTask.taskScheduler = &taskScheduler;
+    ioThreadLoopTask.threadNum = taskScheduler.GetNumTaskThreads() - 1;
+    taskScheduler.AddPinnedTask(&ioThreadLoopTask);
+
+    asyncLoadTask.textureManager = &textureManager;
+    asyncLoadTask.threadNum = ioThreadLoopTask.threadNum;
+    taskScheduler.AddPinnedTask(&asyncLoadTask);
+
+
     globalPool = DescriptorPool::Builder(device)
         .setMaxSets(SwapChain::MAX_FRAMES_IN_FLIGHT)
         .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, SwapChain::MAX_FRAMES_IN_FLIGHT)
@@ -32,9 +45,13 @@ FirstApp::FirstApp() {
         .build();
 
     loadGameObjects();
+
 }
 
 FirstApp::~FirstApp() {
+    asyncLoadTask.execute = false;
+    taskScheduler.WaitforAllAndShutdown();
+
     ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
 
     ImGui_ImplVulkan_Shutdown();
@@ -147,16 +164,57 @@ void FirstApp::run() {
 
             // Render
             renderer.beginSwapChainRenderPass(commandBuffer);
-             
-            // Order here matters
-            simpleRenderSystem.renderGameObjects(frameInfo);
 
-            if(visualisePointLights)
-                pointLightSystem.render(frameInfo);
+            VkCommandBufferInheritanceInfo inheritanceInfo{};
+            inheritanceInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+            inheritanceInfo.renderPass = renderer.getSwapChainRenderPass();
+            inheritanceInfo.subpass = 0;
+            inheritanceInfo.framebuffer = VK_NULL_HANDLE;
 
-            // Render ImGui Frame
-            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+            VkCommandBufferBeginInfo secBeginInfo{};
+            secBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            secBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+            secBeginInfo.pInheritanceInfo = &inheritanceInfo;
 
+            VkExtent2D swapChainExtent = renderer.getSwapChainExtent();
+            VkViewport viewport{0.0f, 0.0f, (float)swapChainExtent.width, (float)swapChainExtent.height, 0.0f, 1.0f};
+            VkRect2D scissor{{0, 0}, swapChainExtent};
+
+            VkCommandBuffer meshCB = renderer.getSecondaryCommandBuffer(0);
+            VkCommandBuffer lightCB = renderer.getSecondaryCommandBuffer(1);
+
+            enki::TaskSet meshTask(1, [&](enki::TaskSetPartition, uint32_t) {
+                vkBeginCommandBuffer(meshCB, &secBeginInfo);
+                vkCmdSetViewport(meshCB, 0, 1, &viewport);
+                vkCmdSetScissor(meshCB, 0, 1, &scissor);
+                FrameInfo meshFrameInfo = frameInfo; meshFrameInfo.commandBuffer = meshCB;
+                simpleRenderSystem.renderGameObjects(meshFrameInfo);
+                vkEndCommandBuffer(meshCB);
+            });
+            taskScheduler.AddTaskSetToPipe(&meshTask);
+
+            enki::TaskSet lightTask(1, [&](enki::TaskSetPartition, uint32_t) {
+                vkBeginCommandBuffer(lightCB, &secBeginInfo);
+                vkCmdSetViewport(lightCB, 0, 1, &viewport);
+                vkCmdSetScissor(lightCB, 0, 1, &scissor);
+                if (visualisePointLights) {
+                    FrameInfo lightFrameInfo = frameInfo; lightFrameInfo.commandBuffer = lightCB;
+                    pointLightSystem.render(lightFrameInfo);
+                }
+                vkEndCommandBuffer(lightCB);
+            });
+            taskScheduler.AddTaskSetToPipe(&lightTask);
+
+            VkCommandBuffer imguiCB = renderer.getSecondaryCommandBuffer(2);
+            vkBeginCommandBuffer(imguiCB, &secBeginInfo);
+            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), imguiCB);
+            vkEndCommandBuffer(imguiCB);
+
+            taskScheduler.WaitforTask(&meshTask);
+            taskScheduler.WaitforTask(&lightTask);
+
+            VkCommandBuffer secondaries[] = { meshCB, lightCB, imguiCB };
+            vkCmdExecuteCommands(commandBuffer, 3, secondaries);
 
             renderer.endSwapChainRenderPass(commandBuffer);
             renderer.endFrame();

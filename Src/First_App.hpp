@@ -8,6 +8,8 @@
 #include "ImGui_Setup.hpp"
 
 #include "Scene.hpp"
+#include "TaskScheduler.h"
+#include "Renderer/Async_Loader.hpp"
 
 // ImGui
 //#define IMGUI_ENABLE_DOCKING
@@ -19,6 +21,27 @@
 // Std
 #include <memory>
 #include <vector>
+#include <iostream>
+
+struct IOThreadLoopTask : enki::IPinnedTask {
+    void Execute() override {
+        while (!taskScheduler->GetIsShutdownRequested()) {
+            taskScheduler->WaitForNewPinnedTasks();
+            taskScheduler->RunPinnedTasks();
+        }
+    }
+    enki::TaskScheduler* taskScheduler = nullptr;
+};
+
+struct AsyncLoadTask : enki::IPinnedTask {
+    void Execute() override {
+        while (execute.load()) {
+            textureManager->update();
+        }
+    }
+    TextureManager* textureManager = nullptr;
+    std::atomic<bool> execute{true};
+};
 
 class FirstApp {
     public:
@@ -42,12 +65,18 @@ class FirstApp {
         bool visualisePointLights = true;
         
         void loadGameObjects();
+
+        enki::TaskScheduler taskScheduler;
         
         Window window{WIDTH, HEIGHT, "V-Engine"};
         Device device{window};
         Renderer renderer{window, device};
-        TextureManager textureManager{device};
+        AsyncLoader asyncLoader = AsyncLoader(device);
+        TextureManager textureManager{device, asyncLoader};
         
+        IOThreadLoopTask ioThreadLoopTask;
+        AsyncLoadTask asyncLoadTask;
+
         // Note: Order of declarations matters
         std::unique_ptr<DescriptorPool> globalPool;
         

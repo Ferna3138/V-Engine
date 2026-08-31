@@ -17,8 +17,10 @@ class Renderer {
         Renderer &operator=(const Renderer &) = delete;
 
         VkRenderPass getSwapChainRenderPass() const { return swapChain->getRenderPass(); }
-        
+
         float getAspectRatio() const { return swapChain->extentAspectRatio(); }
+
+        VkExtent2D getSwapChainExtent() const { return swapChain->getSwapChainExtent(); }
 
         bool isFrameInProgress() const { return isFrameStarted; }
 
@@ -39,6 +41,15 @@ class Renderer {
 
         VkFormat getSwapChainFormat() { return swapChain->getSwapChainImageFormat(); }
 
+        static constexpr int kNumRecorders = 3;  // SimpleRenderSystem, PointLightSystem, ImGui
+
+        std::vector<VkCommandPool> secondaryCommandPools;      // size MAX_FRAMES_IN_FLIGHT * kNumRecorders
+        std::vector<VkCommandBuffer> secondaryCommandBuffers;  // same size/indexing
+
+        VkCommandBuffer getSecondaryCommandBuffer(int recorderIndex) const {
+            return secondaryCommandBuffers[currentFrameIndex * kNumRecorders + recorderIndex];
+        }
+
     private:
         void createCommandBuffers();
         void freeCommandBuffers();
@@ -52,4 +63,7 @@ class Renderer {
         uint32_t currentImageIndex;
         int currentFrameIndex = 0;
         bool isFrameStarted = false;
+
+        void createSecondaryCommandBuffers();
+        void freeSecondaryCommandBuffers();
 };

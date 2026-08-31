@@ -9,6 +9,7 @@
 // std lib headers
 #include <string>
 #include <vector>
+#include <mutex>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_beta.h>
@@ -23,8 +24,10 @@ struct SwapChainSupportDetails {
 struct QueueFamilyIndices {
     uint32_t graphicsFamily;
     uint32_t presentFamily;
+    uint32_t transferFamily;
     bool graphicsFamilyHasValue = false;
     bool presentFamilyHasValue = false;
+    bool transferFamilyHasValue = false;
     bool isComplete() { return graphicsFamilyHasValue && presentFamilyHasValue; }
 };
 
@@ -46,11 +49,19 @@ class Device {
         Device &operator=(Device &&) = delete;
 
         VkCommandPool getCommandPool() { return commandPool; }
+        VkCommandPool getTransferCommandPool() { return transferCommandPool; }
+
         VkPipelineCache getPipelineCache() { return pipelineCache; }
         VkDevice device() { return device_; }
+        
+        
+        VkQueue transferQueue() { return transferQueue_; }
+
         VkSurfaceKHR surface() { return surface_; }
         VkQueue graphicsQueue() { return graphicsQueue_; }
         VkQueue presentQueue() { return presentQueue_; }
+
+        std::mutex graphicsQueueMutex;
 
         void createPipelineCache();
         void savePipelineCache();
@@ -92,6 +103,7 @@ class Device {
         void pickPhysicalDevice();
         void createLogicalDevice();
         void createCommandPool();
+        void createTransferCommandPool();
 
         // helper functions
         bool isDeviceSuitable(VkPhysicalDevice device);
@@ -108,11 +120,13 @@ class Device {
         VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
         Window &window;
         VkCommandPool commandPool;
+        VkCommandPool transferCommandPool;
 
         VkDevice device_;
         VkSurfaceKHR surface_;
         VkQueue graphicsQueue_;
         VkQueue presentQueue_;
+        VkQueue transferQueue_;
 
         const std::vector<const char *> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 

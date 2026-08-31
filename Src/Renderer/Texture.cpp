@@ -5,49 +5,37 @@
 #include "libs/stb_image/stb_image.h"
 #include <stdexcept>
 
-Texture::Texture(Device &_device, const std::string &filepath, VkFormat format) : device{_device} {
+void Texture::onUploadFinished() {
+    loader->acquireAndFinalize(image);
+    stbi_image_free(pendingPixelData);
+    pendingPixelData = nullptr;
+    imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    ready = true;
+}
+
+Texture::Texture(Device &_device, AsyncLoader& _loader, const std::string &filepath, VkFormat format) : device{_device}, loader{&_loader} {
     int channels;
-    int bytesPerPixel;
 
-    stbi_uc* data = stbi_load(filepath.c_str(), &width, &height, &bytesPerPixel, 4);
-
-    mipLevels = std::floor(std::log2(std::max(width, height))) + 1;
-
-    Buffer stagingBuffer{
-        device,
-        4,
-        static_cast<uint32_t> (width * height),
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    };
-    stagingBuffer.map();
-    stagingBuffer.writeToBuffer(data);
-
+    pendingPixelData = stbi_load(filepath.c_str(), &width, &height, &channels, 4);
+    mipLevels = 1;
     imageFormat = format;
 
-    VkImageCreateInfo imageInfo {};
+    VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
     imageInfo.format = imageFormat;
-    imageInfo.mipLevels = mipLevels;
+    imageInfo.mipLevels = 1;
     imageInfo.arrayLayers = 1;
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     imageInfo.extent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1 };
-    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-
+    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     device.createImageWithInfo(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory);
 
-    transitionImageLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-    device.copyBufferToImage(stagingBuffer.getBuffer(), image, static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1);
-
-    //transitionImageLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    generateMipmaps();
-
-    imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    ready = false;
 
     VkSamplerCreateInfo samplerInfo {};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -81,7 +69,13 @@ Texture::Texture(Device &_device, const std::string &filepath, VkFormat format) 
 
     vkCreateImageView(device.device(), &imageViewInfo, nullptr, &imageView);
 
-    stbi_image_free(data);
+    UploadRequest request{};
+    request.image = image;
+    request.data = pendingPixelData;
+    request.dataSize = static_cast<size_t>(width) * height * 4;
+    request.width = static_cast<uint32_t>(width);
+    request.height = static_cast<uint32_t>(height);
+    loader->addUploadRequest(request);
 }
 
 Texture::Texture(Device &_device, int _width, int _height, uint8_t* _data, VkFormat _format, VkImageUsageFlags usage) : device{_device}, width{_width}, height{_height}, imageFormat{_format}{

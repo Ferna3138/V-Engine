@@ -43,6 +43,22 @@ void DestroyDebugUtilsMessengerEXT(
     }
 }
 
+void Device::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
+    vkEndCommandBuffer(commandBuffer);
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    {
+        std::lock_guard<std::mutex> lock(graphicsQueueMutex);
+        vkQueueSubmit(graphicsQueue_, 1, &submitInfo, VK_NULL_HANDLE);
+        vkQueueWaitIdle(graphicsQueue_);
+    }
+
+    vkFreeCommandBuffers(device_, commandPool, 1, &commandBuffer);
+}
+
 void Device::createPipelineCache() {
     std::vector<char> cacheData;
     bool cacheValid = false;
@@ -98,12 +114,16 @@ Device::Device(Window &window) : window{window} {
     pickPhysicalDevice();
     createLogicalDevice();
     createCommandPool();
+    createTransferCommandPool();
     createPipelineCache();
 }
 
 Device::~Device() {
     savePipelineCache();  
+
     vkDestroyCommandPool(device_, commandPool, nullptr);
+    vkDestroyCommandPool(device_, transferCommandPool, nullptr);
+
     vkDestroyDevice(device_, nullptr);
 
     if (enableValidationLayers) {
@@ -194,7 +214,7 @@ void Device::createLogicalDevice() {
     QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily, indices.presentFamily};
+    std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily, indices.presentFamily, indices.transferFamily};
 
     float queuePriority = 1.0f;
     for (uint32_t queueFamily : uniqueQueueFamilies) {
@@ -270,6 +290,19 @@ void Device::createLogicalDevice() {
 
     vkGetDeviceQueue(device_, indices.graphicsFamily, 0, &graphicsQueue_);
     vkGetDeviceQueue(device_, indices.presentFamily, 0, &presentQueue_);
+    vkGetDeviceQueue(device_, indices.transferFamily, 0, &transferQueue_);
+}
+
+
+void Device::createTransferCommandPool() {
+    QueueFamilyIndices queueFamilyIndices = findPhysicalQueueFamilies();
+    VkCommandPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.queueFamilyIndex = queueFamilyIndices.transferFamily;
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    if (vkCreateCommandPool(device_, &poolInfo, nullptr, &transferCommandPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create transfer command pool!");
+    }
 }
 
 void Device::createCommandPool() {
@@ -423,21 +456,30 @@ QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice device) {
     int i = 0;
     for (const auto &queueFamily : queueFamilies) {
         if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-        indices.graphicsFamily = i;
-        indices.graphicsFamilyHasValue = true;
+            indices.graphicsFamily = i;
+            indices.graphicsFamilyHasValue = true;
         }
+
         VkBool32 presentSupport = false;
         vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface_, &presentSupport);
         if (queueFamily.queueCount > 0 && presentSupport) {
-        indices.presentFamily = i;
-        indices.presentFamilyHasValue = true;
+            indices.presentFamily = i;
+            indices.presentFamilyHasValue = true;
         }
-        if (indices.isComplete()) {
-        break;
+
+        if (queueFamily.queueCount > 0 && (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) && !(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
+            indices.transferFamily = i;
+            indices.transferFamilyHasValue = true;
         }
 
         i++;
     }
+
+    if (!indices.transferFamilyHasValue) {
+        indices.transferFamily = indices.graphicsFamily;
+        indices.transferFamilyHasValue = true;
+    }
+
 
     return indices;
 }
@@ -544,20 +586,6 @@ VkCommandBuffer Device::beginSingleTimeCommands() {
 
     vkBeginCommandBuffer(commandBuffer, &beginInfo);
     return commandBuffer;
-}
-
-void Device::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
-    vkEndCommandBuffer(commandBuffer);
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer;
-
-    vkQueueSubmit(graphicsQueue_, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(graphicsQueue_);
-
-    vkFreeCommandBuffers(device_, commandPool, 1, &commandBuffer);
 }
 
 void Device::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {

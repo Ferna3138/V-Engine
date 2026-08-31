@@ -77,4 +77,5 @@ class ComputePipeline {
         Device& device;
         VkPipeline computePipeline;
         VkShaderModule compShaderModule;
+        void createComputePipeline(Device& device, const std::string& compFilepath, VkPipelineLayout layout);
 };

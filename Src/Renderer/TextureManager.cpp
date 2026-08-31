@@ -1,6 +1,6 @@
 #include "Renderer/TextureManager.hpp"
 
-TextureManager::TextureManager(Device& _device) : device{_device} {
+TextureManager::TextureManager(Device& _device, AsyncLoader& _loader) : device{_device}, loader{_loader} {
     setLayout = DescriptorSetLayout::Builder(device)
         .addBinding(
             0,
@@ -20,6 +20,8 @@ TextureManager::TextureManager(Device& _device) : device{_device} {
     
     pool->allocateDescriptor(setLayout->getDescriptorSetLayout(), descriptorSet, MAX_BINDLESS_TEXTURES);
 
+
+
     // Fallback texture
     textures.push_back(std::make_unique<Texture>(device, 1, 1, blackPixel, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT));
     writeTextureToSlot(*textures.back(), 0);
@@ -38,10 +40,12 @@ uint32_t TextureManager::addTexture(const std::string& filepath, VkFormat format
         return it->second;
     }
 
-    textures.push_back(std::make_unique<Texture>(device, filepath, format));
-    writeTextureToSlot(*textures.back(), nextIndex);
-
     uint32_t currentIndex = nextIndex;
+    writeTextureToSlot(*textures[1], currentIndex);
+
+    textures.push_back(std::make_unique<Texture>(device, loader, filepath, format));
+    pendingTextures[textures.back()->getImage()] = { textures.back().get(), currentIndex };
+
     pathToIndex[filepath] = currentIndex;
     nextIndex++;
 
@@ -60,3 +64,14 @@ void TextureManager::writeTextureToSlot(Texture& tex, uint32_t slot){
         .overwrite(descriptorSet);
 }
 
+
+void TextureManager::update() {
+    loader.update();
+    for (VkImage finished : loader.pollFinishedUploads()) {
+        auto it = pendingTextures.find(finished);
+        if (it == pendingTextures.end()) continue;
+        it->second.texture->onUploadFinished();
+        writeTextureToSlot(*it->second.texture, it->second.slot);
+        pendingTextures.erase(it);
+    }
+}

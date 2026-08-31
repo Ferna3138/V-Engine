@@ -13,9 +13,13 @@ Renderer::Renderer(Window& window, Device& device)
     : window{window}, device{device} {
   recreateSwapChain();
   createCommandBuffers();
+  createSecondaryCommandBuffers();
 }
 
-Renderer::~Renderer() { freeCommandBuffers(); }
+Renderer::~Renderer() {
+  freeCommandBuffers();
+  freeSecondaryCommandBuffers();
+}
 
 void Renderer::recreateSwapChain() {
   auto extent = window.getExtent();
@@ -126,18 +130,7 @@ void Renderer::beginSwapChainRenderPass(VkCommandBuffer commandBuffer) {
   renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
   renderPassInfo.pClearValues = clearValues.data();
 
-  vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-  VkViewport viewport{};
-  viewport.x = 0.0f;
-  viewport.y = 0.0f;
-  viewport.width = static_cast<float>(swapChain->getSwapChainExtent().width);
-  viewport.height = static_cast<float>(swapChain->getSwapChainExtent().height);
-  viewport.minDepth = 0.0f;
-  viewport.maxDepth = 1.0f;
-  VkRect2D scissor{{0, 0}, swapChain->getSwapChainExtent()};
-  vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-  vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+  vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 }
 
 void Renderer::endSwapChainRenderPass(VkCommandBuffer commandBuffer) {
@@ -146,4 +139,38 @@ void Renderer::endSwapChainRenderPass(VkCommandBuffer commandBuffer) {
       commandBuffer == getCurrentCommandBuffer() &&
       "Can't end render pass on command buffer from a different frame");
   vkCmdEndRenderPass(commandBuffer);
+}
+
+void Renderer::createSecondaryCommandBuffers() {
+    int count = SwapChain::MAX_FRAMES_IN_FLIGHT * kNumRecorders;
+    secondaryCommandPools.resize(count);
+    secondaryCommandBuffers.resize(count);
+
+    QueueFamilyIndices indices = device.findPhysicalQueueFamilies();
+    for (int i = 0; i < count; i++) {
+        VkCommandPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        poolInfo.queueFamilyIndex = indices.graphicsFamily;
+        poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        if (vkCreateCommandPool(device.device(), &poolInfo, nullptr, &secondaryCommandPools[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create secondary command pool!");
+        }
+
+        VkCommandBufferAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+        allocInfo.commandPool = secondaryCommandPools[i];
+        allocInfo.commandBufferCount = 1;
+        if (vkAllocateCommandBuffers(device.device(), &allocInfo, &secondaryCommandBuffers[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate secondary command buffer!");
+        }
+    }
+}
+
+void Renderer::freeSecondaryCommandBuffers() {
+    for (size_t i = 0; i < secondaryCommandPools.size(); i++) {
+        vkDestroyCommandPool(device.device(), secondaryCommandPools[i], nullptr);  // frees its buffer too
+    }
+    secondaryCommandPools.clear();
+    secondaryCommandBuffers.clear();
 }

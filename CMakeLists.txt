@@ -19,6 +19,12 @@ set(TINYGLTF_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/tinygltfloader)
 # Set EnTT path
 set(ENTT_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/EnTT)
 
+# Add enkiTS (as submodule)
+set(ENKITS_BUILD_C_INTERFACE OFF CACHE BOOL "" FORCE)
+set(ENKITS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(ENKITS_INSTALL OFF CACHE BOOL "" FORCE)
+add_subdirectory(${CMAKE_SOURCE_DIR}/Dependencies/enkiTS)
+
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/*.cpp)
 file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/*.hpp)
@@ -64,9 +70,10 @@ target_include_directories(V-Engine
 
 
 if(WIN32)
-    target_link_libraries(V-Engine 
+    target_link_libraries(V-Engine
         ${GLFW_LIB}
         imgui
+        enkiTS
         Vulkan::Vulkan
         )
 
@@ -96,6 +103,7 @@ elseif(UNIX)
         target_link_libraries(V-Engine
             imgui
             glfw
+            enkiTS
             Vulkan::Vulkan)
     else()
         add_subdirectory(${CMAKE_SOURCE_DIR}/Dependencies/glfw)
@@ -109,6 +117,7 @@ elseif(UNIX)
         target_link_libraries(V-Engine
             imgui
             glfw
+            enkiTS
             Vulkan::Vulkan)
 
     endif()
