@@ -394,9 +394,6 @@ void collectMeshNodes(const tg3_model* model, int32_t nodeIndex, const glm::mat4
 }
 
 
-
-
-
 void Model::Builder::loadGltf(const std::string& filepath, TextureManager& textureManager) {
     tinygltf3::Model model;
     tinygltf3::ErrorStack errors;

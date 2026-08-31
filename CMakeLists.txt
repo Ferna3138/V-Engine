@@ -19,7 +19,7 @@ set(TINYGLTF_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/tinygltfloader)
 # Set EnTT path
 set(ENTT_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/EnTT)
 
-# Add enkiTS (as submodule)
+# Add enkiTS (vendored in Dependencies/enkiTS, upstream: https://github.com/dougbinks/enkiTS @ ccd4e8c)
 set(ENKITS_BUILD_C_INTERFACE OFF CACHE BOOL "" FORCE)
 set(ENKITS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(ENKITS_INSTALL OFF CACHE BOOL "" FORCE)
