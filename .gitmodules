@@ -4,3 +4,6 @@
 [submodule "Dependencies/glfw"]
 	path = Dependencies/glfw
 	url = https://github.com/glfw/glfw.git
+[submodule "Dependencies/enkiTS"]
+	path = Dependencies/enkiTS
+	url = https://github.com/dougbinks/enkiTS.git
