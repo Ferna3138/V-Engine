@@ -244,11 +244,13 @@ void FirstApp::loadGameObjects() {
     //std::shared_ptr<Model> model = Model::createModelFromFile(device, textureManager, "Models/Sponza_obj/sponza.obj");
     std::shared_ptr<Model> model = Model::createModelFromFile(device, textureManager, "Models/GLTF/Sponza/glTF/Sponza.gltf");
 
-    entt::entity sponza = scene.createModelEntity(model);
-    auto& sponzaTransform = scene.getRegistry().get<TransformComponent>(sponza);
-    sponzaTransform.translation = {0.0f, 0.0f, 0.0f};
-    sponzaTransform.scale = glm::vec3{1.f, 1.f, 1.f};
-    
+    if (model) {
+        entt::entity sponza = scene.createModelEntity(model);
+        auto& sponzaTransform = scene.getRegistry().get<TransformComponent>(sponza);
+        sponzaTransform.translation = {0.0f, 0.0f, 0.0f};
+        sponzaTransform.scale = glm::vec3{1.f, 1.f, 1.f};
+    }
+
 
     std::vector<glm::vec3> lightColors{
         {0.956f, 0.262f, 0.211f},  // Soft red (sunset red)

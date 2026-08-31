@@ -64,6 +64,8 @@ class Model{
         Model(const Model&) = delete;
         Model &operator = (const Model&) = delete;
 
+        // Returns nullptr (and logs) if no file exists at filepath; throws on a
+        // malformed model file.
         static std::unique_ptr<Model> createModelFromFile(Device& device, TextureManager& textureManager, const std::string &filepath);
 
         void bind(VkCommandBuffer commandBuffer);

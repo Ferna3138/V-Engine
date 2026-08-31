@@ -33,9 +33,10 @@ std::unique_ptr<Model> Model::createModelFromFile(Device& device, TextureManager
     // working directory the terminal / debugger starts us in.
     std::string resolvedPath = vengine::resolveAssetPath(filepath);
     if (!fs::exists(resolvedPath)) {
-        throw std::runtime_error(
-            "Model file not found: \"" + filepath + "\" (resolved to \"" + resolvedPath +
-            "\", project root \"" + vengine::projectRoot().string() + "\")");
+        // Missing model is not fatal: report it and let the caller carry on
+        // without this model (returns nullptr).
+        std::cerr << "No model found at location " << resolvedPath << std::endl;
+        return nullptr;
     }
 
     Builder builder{};
