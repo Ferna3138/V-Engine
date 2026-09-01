@@ -48,6 +48,8 @@ void PointLightSystem::createPipeline(VkRenderPass renderPass) {
     PipelineConfigInfo pipelineConfig{};
     Pipeline::defaultPipelineConfigInfo(pipelineConfig);
     Pipeline::enableAlphaBlending(pipelineConfig);
+    // Depth pre-pass already ran; test against it, don't fight it.
+    pipelineConfig.depthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
     pipelineConfig.attributeDescriptions.clear();
     pipelineConfig.bindingDescriptions.clear();
 

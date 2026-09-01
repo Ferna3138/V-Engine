@@ -25,23 +25,19 @@
 #include <iostream>
 #include <string>
 
-struct IOThreadLoopTask : enki::IPinnedTask {
-    void Execute() override {
-        while (!taskScheduler->GetIsShutdownRequested()) {
-            taskScheduler->WaitForNewPinnedTasks();
-            taskScheduler->RunPinnedTasks();
-        }
-    }
-    enki::TaskScheduler* taskScheduler = nullptr;
-};
-
+// Runs for the whole app lifetime, pinned to a dedicated enkiTS worker thread.
+// enkiTS internal threads already pump pinned tasks in their own loop, so no
+// separate "run pinned tasks" driver task is needed.
 struct AsyncLoadTask : enki::IPinnedTask {
     void Execute() override {
-        while (execute.load()) {
+        while (execute.load(std::memory_order_relaxed)) {
+            loader->waitForWork();  // blocks until there's an upload to service or shutdown
+            if (!execute.load(std::memory_order_relaxed)) break;
             textureManager->update();
         }
     }
     TextureManager* textureManager = nullptr;
+    AsyncLoader* loader = nullptr;
     std::atomic<bool> execute{true};
 };
 
@@ -77,10 +73,9 @@ class FirstApp {
         Device device{window};
         Renderer renderer{window, device};
         AsyncLoader asyncLoader = AsyncLoader(device);
-        TextureManager textureManager{device, asyncLoader};
+        TextureManager textureManager{device, asyncLoader, taskScheduler};
         FrameGraph frameGraph;
         
-        IOThreadLoopTask ioThreadLoopTask;
         AsyncLoadTask asyncLoadTask;
 
         // Note: Order of declarations matters

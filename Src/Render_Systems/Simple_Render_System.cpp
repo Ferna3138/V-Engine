@@ -54,6 +54,9 @@ void SimpleRenderSystem::createPipeline(VkRenderPass renderPass) {
 
     PipelineConfigInfo pipelineConfig{};
     Pipeline::defaultPipelineConfigInfo(pipelineConfig);
+    // Runs after the depth pre-pass, which already laid down final depth.
+    pipelineConfig.depthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+    pipelineConfig.depthStencilInfo.depthWriteEnable = VK_FALSE;
     pipelineConfig.renderPass = renderPass;
     pipelineConfig.pipelineLayout = pipelineLayout;
     pipeline = std::make_unique<Pipeline>(

@@ -1,6 +1,7 @@
 #include "Renderer/TextureManager.hpp"
 
-TextureManager::TextureManager(Device& _device, AsyncLoader& _loader) : device{_device}, loader{_loader} {
+TextureManager::TextureManager(Device& _device, AsyncLoader& _loader, enki::TaskScheduler& _taskScheduler)
+    : device{_device}, loader{_loader}, taskScheduler{_taskScheduler} {
     setLayout = DescriptorSetLayout::Builder(device)
         .addBinding(
             0,
@@ -40,16 +41,27 @@ uint32_t TextureManager::addTexture(const std::string& filepath, VkFormat format
         return it->second;
     }
 
-    uint32_t currentIndex = nextIndex;
-    writeTextureToSlot(*textures[1], currentIndex);
+    uint32_t slot = nextIndex++;
+    pathToIndex[filepath] = slot;
 
     textures.push_back(std::make_unique<Texture>(device, loader, filepath, format));
-    pendingTextures[textures.back()->getImage()] = { textures.back().get(), currentIndex };
+    Texture* tex = textures.back().get();
 
-    pathToIndex[filepath] = currentIndex;
-    nextIndex++;
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        writeTextureToSlot(*textures[1], slot);  // white placeholder until the upload lands
+        pendingTextures[slot] = tex;
+    }
 
-    return currentIndex;
+    // Register the pending entry above BEFORE the decode task can enqueue an
+    // upload the I/O thread might retire.
+    auto task = std::make_unique<TextureDecodeTask>();
+    task->texture = tex;
+    task->id = slot;
+    taskScheduler.AddTaskSetToPipe(task.get());
+    decodeTasks.push_back(std::move(task));
+
+    return slot;
 }
 
 
@@ -67,11 +79,23 @@ void TextureManager::writeTextureToSlot(Texture& tex, uint32_t slot){
 
 void TextureManager::update() {
     loader.update();
-    for (VkImage finished : loader.pollFinishedUploads()) {
-        auto it = pendingTextures.find(finished);
-        if (it == pendingTextures.end()) continue;
-        it->second.texture->onUploadFinished();
-        writeTextureToSlot(*it->second.texture, it->second.slot);
-        pendingTextures.erase(it);
+    for (uint32_t slot : loader.pollFinishedUploads()) {
+        Texture* texture = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            auto it = pendingTextures.find(slot);
+            if (it == pendingTextures.end()) continue;
+            texture = it->second;
+            pendingTextures.erase(it);
+        }
+
+        // The upload + ownership acquire are already complete on the GPU, so the
+        // image is genuinely SHADER_READ_ONLY_OPTIMAL before its descriptor lands.
+        texture->onUploadFinished();
+
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            writeTextureToSlot(*texture, slot);
+        }
     }
 }

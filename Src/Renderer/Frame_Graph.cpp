@@ -37,6 +37,36 @@ void FrameGraph::compile() {
     topologicalSort();
 }
 
+uint32_t FrameGraph::findNode(const std::string& name) const {
+    for (uint32_t i = 0; i < nodes.size(); ++i)
+        if (nodes[i].name == name) return i;
+    return UINT32_MAX;
+}
+
+VkRenderPass FrameGraph::getNodeRenderPass(const std::string& name) const {
+    uint32_t idx = findNode(name);
+    if (idx == UINT32_MAX)
+        throw std::runtime_error("Frame graph has no node named '" + name + "'");
+    return nodes[idx].renderPass;
+}
+
+void FrameGraph::setPresentOutput(const std::string& resourceName) {
+    for (uint32_t i = 0; i < resources.size(); ++i) {
+        if (resources[i].outputHandle == UINT32_MAX && resources[i].name == resourceName) {
+            presentOutputResource = i;
+            return;
+        }
+    }
+    throw std::runtime_error("Frame graph has no produced resource named '" + resourceName + "'");
+}
+
+FrameGraph::OutputImage FrameGraph::getPresentOutput() const {
+    if (presentOutputResource == UINT32_MAX)
+        throw std::runtime_error("Frame graph present output not set");
+    const FrameGraphResource& r = resources[presentOutputResource];
+    return { r.image, r.resolutionWidth, r.resolutionHeight };
+}
+
 void FrameGraph::computeEdges() {
     for (uint32_t nodeIndex = 0; nodeIndex < nodes.size(); ++nodeIndex) {
         FrameGraphNode& node = nodes[nodeIndex];
@@ -175,6 +205,7 @@ static VkFormat parseVkFormat(const std::string& formatStr) {
     static const std::unordered_map<std::string, VkFormat> formatMap = {
         {"VK_FORMAT_D32_SFLOAT", VK_FORMAT_D32_SFLOAT},
         {"VK_FORMAT_B8G8R8A8_UNORM", VK_FORMAT_B8G8R8A8_UNORM},
+        {"VK_FORMAT_B8G8R8A8_SRGB", VK_FORMAT_B8G8R8A8_SRGB},
         {"VK_FORMAT_R16G16B16A16_SFLOAT", VK_FORMAT_R16G16B16A16_SFLOAT},
         {"VK_FORMAT_R8G8B8A8_UNORM", VK_FORMAT_R8G8B8A8_UNORM},
         {"VK_FORMAT_R8G8B8A8_SRGB", VK_FORMAT_R8G8B8A8_SRGB},
@@ -206,6 +237,8 @@ void FrameGraph::createResources(Device& device) {
             ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
             : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         usage |= VK_IMAGE_USAGE_SAMPLED_BIT;  // any attachment here may be read as a texture by a later node
+        if (!isDepth)
+            usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;  // colour outputs can be blitted to the swapchain
 
         VkImageCreateInfo imageInfo{};
         imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -391,10 +424,67 @@ void FrameGraph::registerRenderPass(const std::string& nodeName, FrameGraphRende
     renderPassCallbacks[nodeName] = std::move(fn);
 }
 
+void FrameGraph::insertInputBarrier(VkCommandBuffer cb, FrameGraphResource& owning, FrameGraphResourceType consumerType) {
+    bool depth = isDepthFormat(owning.vkFormat);
+
+    VkImageLayout newLayout;
+    VkPipelineStageFlags dstStage;
+    VkAccessFlags dstAccess;
+    if (consumerType == FrameGraphResourceType::Texture) {
+        newLayout  = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        dstStage   = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        dstAccess  = VK_ACCESS_SHADER_READ_BIT;
+    } else if (depth) {
+        newLayout  = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        dstStage   = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        dstAccess  = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    } else {
+        newLayout  = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        dstStage   = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dstAccess  = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    }
+
+    // The producer always wrote it as an attachment.
+    VkPipelineStageFlags srcStage = depth
+        ? VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
+        : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkAccessFlags srcAccess = depth
+        ? VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+        : VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    VkImageMemoryBarrier b{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    b.oldLayout = owning.currentLayout;
+    b.newLayout = newLayout;
+    b.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    b.image = owning.image;
+    b.subresourceRange = {
+        static_cast<VkImageAspectFlags>(depth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT),
+        0, 1, 0, 1 };
+    b.srcAccessMask = srcAccess;
+    b.dstAccessMask = dstAccess;
+    vkCmdPipelineBarrier(cb, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &b);
+
+    owning.currentLayout = newLayout;
+}
+
 void FrameGraph::execute(VkCommandBuffer commandBuffer) {
+    // Images persist across frames; re-derive their layouts from the graph each
+    // frame. Every attachment is either CLEAR (starts UNDEFINED) or LOADed from a
+    // producer within this same frame (barriered from the layout we track below).
+    for (FrameGraphResource& r : resources)
+        r.currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
     for (uint32_t nodeIndex : sortedNodeOrder) {
         FrameGraphNode& node = nodes[nodeIndex];
         if (node.renderPass == VK_NULL_HANDLE) continue;
+
+        // Auto-insert the transitions this node's incoming edges imply.
+        for (uint32_t inResIndex : node.inputs) {
+            FrameGraphResource& inRes = resources[inResIndex];
+            if (inRes.outputHandle == UINT32_MAX) continue;  // no producer -> nothing to sync
+            insertInputBarrier(commandBuffer, resources[inRes.outputHandle], inRes.type);
+        }
 
         std::vector<AttachmentEntry> attachmentEntries = gatherAttachmentEntries(node);
 
@@ -435,5 +525,35 @@ void FrameGraph::execute(VkCommandBuffer commandBuffer) {
         }
 
         vkCmdEndRenderPass(commandBuffer);
+
+        // The render pass left every attachment in its attachment-optimal layout
+        // (see createRenderPasses' finalLayout). Record that so downstream edges
+        // barrier from the right source layout.
+        for (const auto& entry : attachmentEntries) {
+            FrameGraphResource& res = resources[entry.resourceIndex];
+            FrameGraphResource& owning = (res.outputHandle == UINT32_MAX) ? res : resources[res.outputHandle];
+            owning.currentLayout = isDepthFormat(owning.vkFormat)
+                ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        }
+    }
+
+    // The presentable output leaves the graph into a blit — hand it over as
+    // TRANSFER_SRC. Also graph-driven: it's just the edge to the swapchain.
+    if (presentOutputResource != UINT32_MAX) {
+        FrameGraphResource& out = resources[presentOutputResource];
+        VkImageMemoryBarrier b{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+        b.oldLayout = out.currentLayout;
+        b.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        b.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        b.image = out.image;
+        b.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+        b.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        b.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        vkCmdPipelineBarrier(commandBuffer,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0, 0, nullptr, 0, nullptr, 1, &b);
+        out.currentLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     }
 }

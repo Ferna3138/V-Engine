@@ -4,6 +4,7 @@
 #include "Systems/Keyboard_Movement_Controller.hpp"
 #include "Render_Systems/Simple_Render_System.hpp"
 #include "Render_Systems/Point_Light_System.hpp"
+#include "Render_Systems/Depth_Prepass_System.hpp"
 #include "Renderer/Buffer.hpp"
 #include "Renderer/Texture.hpp"
 #include "Utils/AssetPath.hpp"
@@ -27,15 +28,17 @@
 
 FirstApp::FirstApp() {
     enki::TaskSchedulerConfig config;
-    config.numTaskThreadsToCreate = enki::GetNumHardwareThreads();  // default is -1; this reserves one extra
+    // Default is GetNumHardwareThreads()-1 (thread 0 is the calling thread). Add
+    // one extra to own the always-blocked async-loader thread without stealing a
+    // core from the task pool.
+    config.numTaskThreadsToCreate = enki::GetNumHardwareThreads();
     taskScheduler.Initialize(config);
 
-    ioThreadLoopTask.taskScheduler = &taskScheduler;
-    ioThreadLoopTask.threadNum = taskScheduler.GetNumTaskThreads() - 1;
-    taskScheduler.AddPinnedTask(&ioThreadLoopTask);
-
+    // Pinned to the last worker thread; it blocks in loader->waitForWork() until
+    // there's an upload to service, so it costs nothing while idle.
     asyncLoadTask.textureManager = &textureManager;
-    asyncLoadTask.threadNum = ioThreadLoopTask.threadNum;
+    asyncLoadTask.loader = &asyncLoader;
+    asyncLoadTask.threadNum = taskScheduler.GetNumTaskThreads() - 1;
     taskScheduler.AddPinnedTask(&asyncLoadTask);
 
 
@@ -51,15 +54,12 @@ FirstApp::FirstApp() {
     frameGraph.compile();
     frameGraph.createResources(device);
     frameGraph.createRenderPasses(device);
-
-    frameGraph.registerRenderPass("depth_pre_pass", [](VkCommandBuffer) {
-        // proof of dispatch — real geometry rendering into this pass is future work
-    });
-
+    frameGraph.setPresentOutput("scene_colour");
 }
 
 FirstApp::~FirstApp() {
     asyncLoadTask.execute = false;
+    asyncLoader.wakeForShutdown();  // unblock waitForWork() so the pinned task can exit
     taskScheduler.WaitforAllAndShutdown();
 
     ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
@@ -95,13 +95,31 @@ void FirstApp::run() {
     }
 
 
-    // Pipeline creation
+    // Geometry is rendered by the frame graph (depth_prepass -> forward), so the
+    // render systems build their pipelines against the graph's render passes.
+    DepthPrepassSystem depthPrepassSystem{
+        device,
+        frameGraph.getNodeRenderPass("depth_prepass"),
+        globalSetLayout->getDescriptorSetLayout()};
     SimpleRenderSystem simpleRenderSystem{
         device,
-        renderer.getSwapChainRenderPass(),
+        frameGraph.getNodeRenderPass("forward"),
         globalSetLayout->getDescriptorSetLayout(),
         textureManager.getLayout()};
-    PointLightSystem pointLightSystem{device, renderer.getSwapChainRenderPass(), globalSetLayout->getDescriptorSetLayout()};
+    PointLightSystem pointLightSystem{device, frameGraph.getNodeRenderPass("forward"), globalSetLayout->getDescriptorSetLayout()};
+
+    // The frame graph invokes these inside each pass's render pass, on the primary
+    // command buffer. activeFrame is repointed at the current FrameInfo each frame.
+    FrameInfo* activeFrame = nullptr;
+    frameGraph.registerRenderPass("depth_prepass", [&](VkCommandBuffer cb) {
+        FrameInfo fi = *activeFrame; fi.commandBuffer = cb;
+        depthPrepassSystem.render(fi);
+    });
+    frameGraph.registerRenderPass("forward", [&](VkCommandBuffer cb) {
+        FrameInfo fi = *activeFrame; fi.commandBuffer = cb;
+        simpleRenderSystem.renderGameObjects(fi);
+        if (visualisePointLights) pointLightSystem.render(fi);
+    });
 
     setUpImgui();
 
@@ -168,12 +186,56 @@ void FirstApp::run() {
             pointLightSystem.update(frameInfo, ubo);
             uboBuffers[frameIndex]->writeToBuffer(&ubo);
             uboBuffers[frameIndex]->flush();
-            
+
             renderUI();
-            
+
+            // --- Frame graph: depth pre-pass -> forward, into an offscreen image,
+            //     with barriers auto-inserted from the graph edges. ---
+            activeFrame = &frameInfo;
             frameGraph.execute(commandBuffer);
 
-            // Render
+            // --- Composite: blit the graph's colour output into the acquired
+            //     swapchain image, then draw the UI on top. ---
+            FrameGraph::OutputImage sceneColour = frameGraph.getPresentOutput();
+            VkImage swapImage = renderer.getCurrentSwapChainImage();
+            VkExtent2D swapChainExtent = renderer.getSwapChainExtent();
+
+            VkImageMemoryBarrier toDst{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+            toDst.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            toDst.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            toDst.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            toDst.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            toDst.image = swapImage;
+            toDst.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+            toDst.srcAccessMask = 0;
+            toDst.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            vkCmdPipelineBarrier(commandBuffer,
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                0, 0, nullptr, 0, nullptr, 1, &toDst);
+
+            VkImageBlit blit{};
+            blit.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+            blit.srcOffsets[1] = { (int32_t)sceneColour.width, (int32_t)sceneColour.height, 1 };
+            blit.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+            blit.dstOffsets[1] = { (int32_t)swapChainExtent.width, (int32_t)swapChainExtent.height, 1 };
+            vkCmdBlitImage(commandBuffer,
+                sceneColour.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                swapImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                1, &blit, VK_FILTER_LINEAR);
+
+            VkImageMemoryBarrier toColour{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+            toColour.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            toColour.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            toColour.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            toColour.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            toColour.image = swapImage;
+            toColour.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+            toColour.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            toColour.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            vkCmdPipelineBarrier(commandBuffer,
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                0, 0, nullptr, 0, nullptr, 1, &toColour);
+
             renderer.beginSwapChainRenderPass(commandBuffer);
 
             VkCommandBufferInheritanceInfo inheritanceInfo{};
@@ -187,45 +249,11 @@ void FirstApp::run() {
             secBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
             secBeginInfo.pInheritanceInfo = &inheritanceInfo;
 
-            VkExtent2D swapChainExtent = renderer.getSwapChainExtent();
-            VkViewport viewport{0.0f, 0.0f, (float)swapChainExtent.width, (float)swapChainExtent.height, 0.0f, 1.0f};
-            VkRect2D scissor{{0, 0}, swapChainExtent};
-
-            VkCommandBuffer meshCB = renderer.getSecondaryCommandBuffer(0);
-            VkCommandBuffer lightCB = renderer.getSecondaryCommandBuffer(1);
-
-            enki::TaskSet meshTask(1, [&](enki::TaskSetPartition, uint32_t) {
-                vkBeginCommandBuffer(meshCB, &secBeginInfo);
-                vkCmdSetViewport(meshCB, 0, 1, &viewport);
-                vkCmdSetScissor(meshCB, 0, 1, &scissor);
-                FrameInfo meshFrameInfo = frameInfo; meshFrameInfo.commandBuffer = meshCB;
-                simpleRenderSystem.renderGameObjects(meshFrameInfo);
-                vkEndCommandBuffer(meshCB);
-            });
-            taskScheduler.AddTaskSetToPipe(&meshTask);
-
-            enki::TaskSet lightTask(1, [&](enki::TaskSetPartition, uint32_t) {
-                vkBeginCommandBuffer(lightCB, &secBeginInfo);
-                vkCmdSetViewport(lightCB, 0, 1, &viewport);
-                vkCmdSetScissor(lightCB, 0, 1, &scissor);
-                if (visualisePointLights) {
-                    FrameInfo lightFrameInfo = frameInfo; lightFrameInfo.commandBuffer = lightCB;
-                    pointLightSystem.render(lightFrameInfo);
-                }
-                vkEndCommandBuffer(lightCB);
-            });
-            taskScheduler.AddTaskSetToPipe(&lightTask);
-
             VkCommandBuffer imguiCB = renderer.getSecondaryCommandBuffer(2);
             vkBeginCommandBuffer(imguiCB, &secBeginInfo);
             ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), imguiCB);
             vkEndCommandBuffer(imguiCB);
-
-            taskScheduler.WaitforTask(&meshTask);
-            taskScheduler.WaitforTask(&lightTask);
-
-            VkCommandBuffer secondaries[] = { meshCB, lightCB, imguiCB };
-            vkCmdExecuteCommands(commandBuffer, 3, secondaries);
+            vkCmdExecuteCommands(commandBuffer, 1, &imguiCB);
 
             renderer.endSwapChainRenderPass(commandBuffer);
             renderer.endFrame();

@@ -1,4 +1,5 @@
 #include "Renderer/Async_Loader.hpp"
+#include <cassert>
 #include <cstring>
 
 AsyncLoader::AsyncLoader(Device& _device)
@@ -24,36 +25,105 @@ AsyncLoader::AsyncLoader(Device& _device)
     VkFenceCreateInfo fenceInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     vkCreateFence(device.device(), &fenceInfo, nullptr, &transferFence);
+
+    // Own graphics-family pool + fence for the ownership acquire, so finalization
+    // never races the main thread on the Device's shared command pool / queue.
+    QueueFamilyIndices indices = device.findPhysicalQueueFamilies();
+    VkCommandPoolCreateInfo poolInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    poolInfo.queueFamilyIndex = indices.graphicsFamily;
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    vkCreateCommandPool(device.device(), &poolInfo, nullptr, &finalizeCommandPool);
+
+    VkCommandBufferAllocateInfo finalizeAllocInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    finalizeAllocInfo.commandPool = finalizeCommandPool;
+    finalizeAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    finalizeAllocInfo.commandBufferCount = 1;
+    vkAllocateCommandBuffers(device.device(), &finalizeAllocInfo, &finalizeCommandBuffer);
+
+    VkFenceCreateInfo finalizeFenceInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+    vkCreateFence(device.device(), &finalizeFenceInfo, nullptr, &finalizeFence);
 }
 
 AsyncLoader::~AsyncLoader() {
+    vkDestroyFence(device.device(), finalizeFence, nullptr);
+    vkDestroyCommandPool(device.device(), finalizeCommandPool, nullptr);  // frees its buffer too
     vkDestroyFence(device.device(), transferFence, nullptr);
     vkDestroySemaphore(device.device(), transferCompleteSemaphore, nullptr);
     vkFreeCommandBuffers(device.device(), device.getTransferCommandPool(), 1, &transferCommandBuffer);
 }
 
 void AsyncLoader::addUploadRequest(const UploadRequest& request) {
-    std::lock_guard<std::mutex> lock(requestMutex);
-    uploadRequests.push_back(request);
+    {
+        std::lock_guard<std::mutex> lock(requestMutex);
+        uploadRequests.push_back(request);
+    }
+    requestCv.notify_one();
+}
+
+void AsyncLoader::waitForWork() {
+    // Advance an in-flight stage: block (bounded) on whichever fence we're
+    // waiting on, then let the caller run update(). These flags are only ever
+    // written on this same (I/O) thread.
+    if (hasInFlightRequest) {
+        vkWaitForFences(device.device(), 1, &transferFence, VK_TRUE, k_fenceWaitTimeoutNs);
+        return;
+    }
+    if (hasFinalizingRequest) {
+        vkWaitForFences(device.device(), 1, &finalizeFence, VK_TRUE, k_fenceWaitTimeoutNs);
+        return;
+    }
+    std::unique_lock<std::mutex> lock(requestMutex);
+    requestCv.wait(lock, [this] { return shuttingDown || !uploadRequests.empty(); });
+}
+
+void AsyncLoader::wakeForShutdown() {
+    {
+        std::lock_guard<std::mutex> lock(requestMutex);
+        shuttingDown = true;
+    }
+    requestCv.notify_all();
 }
 
 void AsyncLoader::update() {
-    if (hasInFlightRequest) {
-        if (vkGetFenceStatus(device.device(), transferFence) != VK_SUCCESS) { return; }
+    // 1. Retire a completed acquire -> the texture is fully resident.
+    if (hasFinalizingRequest &&
+        vkGetFenceStatus(device.device(), finalizeFence) == VK_SUCCESS) {
         {
             std::lock_guard<std::mutex> lock(finishedMutex);
-            finishedUploads.push_back(inFlightRequest.image);
+            finishedUploads.push_back(finalizingRequest.id);
         }
+        hasFinalizingRequest = false;
+    }
+
+    // 2. Retire a completed transfer -> hand the image to the graphics queue.
+    //    Only when the single finalize slot is free; until then the transfer's
+    //    semaphore signal stays unconsumed and no new transfer may start.
+    if (hasInFlightRequest && !hasFinalizingRequest &&
+        vkGetFenceStatus(device.device(), transferFence) == VK_SUCCESS) {
+        submitAcquire(inFlightRequest.image);
+        finalizingRequest = inFlightRequest;
+        hasFinalizingRequest = true;
         hasInFlightRequest = false;
     }
 
-    UploadRequest request;
-    {
-        std::lock_guard<std::mutex> lock(requestMutex);
-        if (uploadRequests.empty()) return;
-        request = uploadRequests.back();
-        uploadRequests.pop_back();
+    // 3. Start the next transfer (semaphore is now guaranteed unsignalled).
+    if (!hasInFlightRequest) {
+        UploadRequest request;
+        {
+            std::lock_guard<std::mutex> lock(requestMutex);
+            if (uploadRequests.empty()) return;
+            request = uploadRequests.back();
+            uploadRequests.pop_back();
+        }
+        submitTransfer(request);
+        inFlightRequest = request;
+        hasInFlightRequest = true;
     }
+}
+
+void AsyncLoader::submitTransfer(const UploadRequest& request) {
+    // A texture larger than the staging buffer would silently corrupt memory.
+    assert(request.dataSize <= k_stagingBufferSize && "texture exceeds AsyncLoader staging buffer");
 
     vkResetFences(device.device(), 1, &transferFence);
 
@@ -100,23 +170,21 @@ void AsyncLoader::update() {
 
     vkEndCommandBuffer(transferCommandBuffer);
 
-    // transferCompleteSemaphore is unused for now — completion is tracked via transferFence
-    // (polled in pollFinishedUploads()) and acquireAndFinalize() waits via vkQueueWaitIdle.
-    // It'll be wired in once acquireAndFinalize() moves off that CPU-side wait onto a real
-    // semaphore-gated submit (see the pinned I/O thread phase).
     VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &transferCommandBuffer;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &transferCompleteSemaphore;
     vkQueueSubmit(device.transferQueue(), 1, &submitInfo, transferFence);
-
-    inFlightRequest = request;
-    hasInFlightRequest = true;
 }
 
-void AsyncLoader::acquireAndFinalize(VkImage image) {
+void AsyncLoader::submitAcquire(VkImage image) {
     QueueFamilyIndices indices = device.findPhysicalQueueFamilies();
 
-    VkCommandBuffer commandBuffer = device.beginSingleTimeCommands();
+    vkResetCommandBuffer(finalizeCommandBuffer, 0);
+    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(finalizeCommandBuffer, &beginInfo);
 
     VkImageMemoryBarrier acquireBarrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
     acquireBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -128,16 +196,34 @@ void AsyncLoader::acquireAndFinalize(VkImage image) {
     acquireBarrier.srcAccessMask = 0;
     acquireBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-    vkCmdPipelineBarrier(commandBuffer,
+    vkCmdPipelineBarrier(finalizeCommandBuffer,
         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
         0, 0, nullptr, 0, nullptr, 1, &acquireBarrier);
 
-    device.endSingleTimeCommands(commandBuffer);
+    vkEndCommandBuffer(finalizeCommandBuffer);
+
+    VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &transferCompleteSemaphore;
+    submitInfo.pWaitDstStageMask = &waitStage;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &finalizeCommandBuffer;
+
+    vkResetFences(device.device(), 1, &finalizeFence);
+    {
+        // vkQueueSubmit must be externally synchronised per queue — the main
+        // thread submits render work to the same graphics queue.
+        std::lock_guard<std::mutex> lock(device.graphicsQueueMutex);
+        vkQueueSubmit(device.graphicsQueue(), 1, &submitInfo, finalizeFence);
+    }
+    // No CPU wait here: completion is picked up by update()'s finalizeFence poll,
+    // so the graphics queue is never flushed.
 }
 
-std::vector<VkImage> AsyncLoader::pollFinishedUploads() {
+std::vector<uint32_t> AsyncLoader::pollFinishedUploads() {
     std::lock_guard<std::mutex> lock(finishedMutex);
-    std::vector<VkImage> result = std::move(finishedUploads);
+    std::vector<uint32_t> result = std::move(finishedUploads);
     finishedUploads.clear();
     return result;
 }

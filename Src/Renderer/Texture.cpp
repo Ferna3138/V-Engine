@@ -3,22 +3,34 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "libs/stb_image/stb_image.h"
+#include <cstdio>
 #include <stdexcept>
 
 void Texture::onUploadFinished() {
-    loader->acquireAndFinalize(image);
     stbi_image_free(pendingPixelData);
     pendingPixelData = nullptr;
     imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     ready = true;
 }
 
-Texture::Texture(Device &_device, AsyncLoader& _loader, const std::string &filepath, VkFormat format) : device{_device}, loader{&_loader} {
+// Cheap: just records what to load. The real work happens in asyncLoad() on a
+// worker thread so file decode never blocks the caller.
+Texture::Texture(Device &_device, AsyncLoader& _loader, const std::string &filepath, VkFormat format)
+    : device{_device}, imageFormat{format}, loader{&_loader}, sourcePath{filepath} {
+    imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    ready = false;
+}
+
+void Texture::asyncLoad(uint32_t id) {
     int channels;
 
-    pendingPixelData = stbi_load(filepath.c_str(), &width, &height, &channels, 4);
+    pendingPixelData = stbi_load(sourcePath.c_str(), &width, &height, &channels, 4);
+    if (!pendingPixelData) {
+        // Runs on a worker thread — don't throw. The slot keeps its placeholder.
+        std::fprintf(stderr, "Texture decode failed: %s\n", sourcePath.c_str());
+        return;
+    }
     mipLevels = 1;
-    imageFormat = format;
 
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -70,6 +82,7 @@ Texture::Texture(Device &_device, AsyncLoader& _loader, const std::string &filep
     vkCreateImageView(device.device(), &imageViewInfo, nullptr, &imageView);
 
     UploadRequest request{};
+    request.id = id;
     request.image = image;
     request.data = pendingPixelData;
     request.dataSize = static_cast<size_t>(width) * height * 4;

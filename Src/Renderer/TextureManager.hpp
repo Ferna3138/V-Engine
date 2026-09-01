@@ -5,16 +5,19 @@
 #include "Renderer/Texture.hpp"
 #include "Renderer/Async_Loader.hpp"
 
+#include "TaskScheduler.h"
+
 // std
 #include <string>
 #include <memory>
+#include <mutex>
 #include <vector>
 #include <stdexcept>
 #include <unordered_map>
 
 class TextureManager{
     public:
-        TextureManager(Device& device, AsyncLoader& loader);
+        TextureManager(Device& device, AsyncLoader& loader, enki::TaskScheduler& taskScheduler);
         void update();
 
         uint32_t addTexture(const std::string& filepath, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
@@ -43,6 +46,24 @@ class TextureManager{
         void writeTextureToSlot(Texture&, uint32_t slot);
 
         AsyncLoader& loader;
-        struct PendingTexture { Texture* texture; uint32_t slot; };
-        std::unordered_map<VkImage, PendingTexture> pendingTextures;
+        enki::TaskScheduler& taskScheduler;
+
+        // File decode + GPU resource creation for one streamed texture, run on a
+        // worker thread. Self-owned by TextureManager (kept alive until shutdown,
+        // when WaitforAllAndShutdown() has drained every task).
+        struct TextureDecodeTask : enki::ITaskSet {
+            Texture* texture = nullptr;
+            uint32_t id = 0;
+            void ExecuteRange(enki::TaskSetPartition, uint32_t) override { texture->asyncLoad(id); }
+        };
+        std::vector<std::unique_ptr<TextureDecodeTask>> decodeTasks;
+
+        // slot index -> texture still streaming in. Keyed by the stable slot id,
+        // not VkImage (which doesn't exist until the decode task runs).
+        std::unordered_map<uint32_t, Texture*> pendingTextures;
+
+        // addTexture() runs on the main thread; update() runs on the I/O thread.
+        // Guards pendingTextures and every writeTextureToSlot() (i.e. host access
+        // to the shared bindless descriptor set).
+        std::mutex mutex;
     };

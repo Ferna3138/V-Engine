@@ -22,6 +22,8 @@ class Renderer {
 
         VkExtent2D getSwapChainExtent() const { return swapChain->getSwapChainExtent(); }
 
+        VkImage getCurrentSwapChainImage() const { return swapChain->getImage(currentImageIndex); }
+
         bool isFrameInProgress() const { return isFrameStarted; }
 
         VkCommandBuffer getCurrentCommandBuffer() const {
