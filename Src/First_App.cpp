@@ -235,13 +235,13 @@ void FirstApp::run() {
 
             renderUI();
 
-            // --- Frame graph: depth pre-pass -> forward, into an offscreen image,
-            //     with barriers auto-inserted from the graph edges. ---
+            // Frame graph: depth pre-pass -> forward, into an offscreen image,
+            //with barriers auto-inserted from the graph edges.
             activeFrame = &frameInfo;
             frameGraph.execute(commandBuffer);
 
-            // --- Composite: blit the graph's colour output into the acquired
-            //     swapchain image, then draw the UI on top. ---
+            // Composite: blit the graph's colour output into the acquired
+            // swapchain image, then draw the UI on top.
             FrameGraph::OutputImage sceneColour = frameGraph.getPresentOutput();
             VkImage swapImage = renderer.getCurrentSwapChainImage();
             VkExtent2D swapChainExtent = renderer.getSwapChainExtent();
