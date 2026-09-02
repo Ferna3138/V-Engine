@@ -54,6 +54,7 @@ FirstApp::FirstApp() {
     frameGraph.compile();
     frameGraph.createResources(device);
     frameGraph.createRenderPasses(device);
+    frameGraph.setNodeUsesSecondaryCommandBuffers("forward", true);
     frameGraph.setPresentOutput("scene_colour");
 }
 
@@ -117,9 +118,52 @@ void FirstApp::run() {
     });
     
     frameGraph.registerRenderPass("forward", [&](VkCommandBuffer cb) {
-        FrameInfo fi = *activeFrame; fi.commandBuffer = cb;
-        simpleRenderSystem.renderGameObjects(fi);
-        if (visualisePointLights) pointLightSystem.render(fi);
+        VkRenderPass forwardPass = frameGraph.getNodeRenderPass("forward");
+        VkExtent2D extent = frameGraph.getNodeExtent("forward");
+
+        VkCommandBufferInheritanceInfo inheritanceInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO};
+        inheritanceInfo.renderPass = forwardPass;
+        inheritanceInfo.subpass = 0;
+        inheritanceInfo.framebuffer = VK_NULL_HANDLE;
+
+        VkCommandBufferBeginInfo secBeginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+        secBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+        secBeginInfo.pInheritanceInfo = &inheritanceInfo;
+
+        VkViewport viewport{0.0f, 0.0f, (float)extent.width, (float)extent.height, 0.0f, 1.0f};
+        VkRect2D scissor{{0, 0}, extent};
+
+        VkCommandBuffer meshCB = renderer.getSecondaryCommandBuffer(0);
+        VkCommandBuffer lightCB = renderer.getSecondaryCommandBuffer(1);
+        FrameInfo fi = *activeFrame;
+
+        enki::TaskSet meshTask(1, [&](enki::TaskSetPartition, uint32_t) {
+            vkBeginCommandBuffer(meshCB, &secBeginInfo);
+            vkCmdSetViewport(meshCB, 0, 1, &viewport);
+            vkCmdSetScissor(meshCB, 0, 1, &scissor);
+            FrameInfo meshFi = fi; meshFi.commandBuffer = meshCB;
+            simpleRenderSystem.renderGameObjects(meshFi);
+            vkEndCommandBuffer(meshCB);
+        });
+        taskScheduler.AddTaskSetToPipe(&meshTask);
+
+        enki::TaskSet lightTask(1, [&](enki::TaskSetPartition, uint32_t) {
+            vkBeginCommandBuffer(lightCB, &secBeginInfo);
+            vkCmdSetViewport(lightCB, 0, 1, &viewport);
+            vkCmdSetScissor(lightCB, 0, 1, &scissor);
+            if (visualisePointLights) {
+                FrameInfo lightFi = fi; lightFi.commandBuffer = lightCB;
+                pointLightSystem.render(lightFi);
+            }
+            vkEndCommandBuffer(lightCB);
+        });
+        taskScheduler.AddTaskSetToPipe(&lightTask);
+
+        taskScheduler.WaitforTask(&meshTask);
+        taskScheduler.WaitforTask(&lightTask);
+
+        VkCommandBuffer secondaries[] = { meshCB, lightCB };
+        vkCmdExecuteCommands(cb, 2, secondaries);
     });
 
     setUpImgui();

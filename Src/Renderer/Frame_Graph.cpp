@@ -512,12 +512,17 @@ void FrameGraph::execute(VkCommandBuffer commandBuffer) {
         beginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
         beginInfo.pClearValues = clearValues.data();
 
-        vkCmdBeginRenderPass(commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+        VkSubpassContents contents = node.useSecondaryCommandBuffers
+            ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS
+            : VK_SUBPASS_CONTENTS_INLINE;
+        vkCmdBeginRenderPass(commandBuffer, &beginInfo, contents);
 
-        VkViewport viewport{0.0f, 0.0f, (float)width, (float)height, 0.0f, 1.0f};
-        VkRect2D scissor{{0, 0}, {width, height}};
-        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+        if (!node.useSecondaryCommandBuffers) {
+            VkViewport viewport{0.0f, 0.0f, (float)width, (float)height, 0.0f, 1.0f};
+            VkRect2D scissor{{0, 0}, {width, height}};
+            vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+        }
 
         auto it = renderPassCallbacks.find(node.name);
         if (it != renderPassCallbacks.end()) {
