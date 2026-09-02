@@ -3,20 +3,17 @@ project(V-Engine VERSION 1.0.0)
 cmake_policy(SET CMP0072 NEW)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Vulkan REQUIRED)
 
-# Set GLFW lib and include dir for Windows
+# ------------------------------------------------------------------
+#  Dependency locations
+# ------------------------------------------------------------------
 set(GLFW_LIB ${CMAKE_SOURCE_DIR}/Dependencies/lib-vc2022/glfw3.lib)
 set(GLFW_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/Dependencies/glfw/include)
-
-
-# Set TinyOBJ path
 set(TINYOBJ_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/tinyobjloader)
-# Set TinyGLTF path
 set(TINYGLTF_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/tinygltfloader)
-
-# Set EnTT path
 set(ENTT_PATH ${CMAKE_SOURCE_DIR}/Dependencies/libs/EnTT)
 
 # Add enkiTS (vendored in Dependencies/enkiTS, upstream: https://github.com/dougbinks/enkiTS @ ccd4e8c)
@@ -25,13 +22,22 @@ set(ENKITS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(ENKITS_INSTALL OFF CACHE BOOL "" FORCE)
 add_subdirectory(${CMAKE_SOURCE_DIR}/Dependencies/enkiTS)
 
+# GLFW: prebuilt lib on Windows, built from source elsewhere.
+if(WIN32)
+    set(GLFW_TARGET ${GLFW_LIB})
+else()
+    set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+    set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/Dependencies/glfw)
+    set(GLFW_TARGET glfw)
+endif()
 
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/*.cpp)
-file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/*.hpp)
-
-# ImGui sources
+# ------------------------------------------------------------------
+#  ImGui (application layer only)
+# ------------------------------------------------------------------
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/Dependencies/imgui)
-
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
@@ -41,10 +47,7 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
     ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
 )
-
 add_library(imgui STATIC ${IMGUI_SOURCES})
-
-# ImGui Include Directories
 target_include_directories(imgui PUBLIC
     ${Vulkan_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/Dependencies/
@@ -52,100 +55,64 @@ target_include_directories(imgui PUBLIC
     ${IMGUI_DIR}/backends
     $<$<PLATFORM_ID:Windows>:${GLFW_INCLUDE_DIR}>
 )
+target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_DOCKING)
 
-target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_DOCKING TINYGLTF3_ENABLE_FS)
+# ==================================================================
+#  Engine layers:  Foundation  <-  Rendering  <-  Application
+#  Each layer is its own static library so the dependency direction
+#  is enforced by the linker, not just by convention.
+# ==================================================================
 
-add_executable(V-Engine ${SOURCES} ${HEADERS})
-
-# Include directories
-target_include_directories(V-Engine 
-    PRIVATE
+# ---- Foundation -------------------------------------------------
+file(GLOB_RECURSE FOUNDATION_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/Foundation/*.cpp)
+file(GLOB_RECURSE FOUNDATION_HEADERS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/Foundation/*.hpp)
+add_library(vengine_foundation STATIC ${FOUNDATION_SOURCES} ${FOUNDATION_HEADERS})
+target_include_directories(vengine_foundation PUBLIC
     ${CMAKE_SOURCE_DIR}/Src
-    Dependencies
-    ${TINYOBJ_PATH}
-    ${TINYGLTF_PATH}
-    ${ENTT_PATH}
+    ${CMAKE_SOURCE_DIR}/Dependencies
     $<$<PLATFORM_ID:Windows>:${GLFW_INCLUDE_DIR}>
 )
+target_link_libraries(vengine_foundation PUBLIC Vulkan::Vulkan enkiTS ${GLFW_TARGET})
 
+# ---- Rendering -------------------------------------------------
+file(GLOB_RECURSE RENDERING_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/Rendering/*.cpp)
+file(GLOB_RECURSE RENDERING_HEADERS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/Rendering/*.hpp)
+add_library(vengine_rendering STATIC ${RENDERING_SOURCES} ${RENDERING_HEADERS})
+target_include_directories(vengine_rendering PUBLIC
+    ${TINYOBJ_PATH}
+    ${TINYGLTF_PATH}
+)
+target_compile_definitions(vengine_rendering PUBLIC TINYGLTF3_ENABLE_FS)
+target_link_libraries(vengine_rendering PUBLIC vengine_foundation)
 
+# ---- Application (executable) ---------------------------------
+file(GLOB_RECURSE APPLICATION_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/Application/*.cpp)
+file(GLOB_RECURSE APPLICATION_HEADERS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/Src/Application/*.hpp)
+add_executable(V-Engine ${APPLICATION_SOURCES} ${APPLICATION_HEADERS})
+target_include_directories(V-Engine PRIVATE ${ENTT_PATH})
+target_link_libraries(V-Engine PRIVATE vengine_rendering imgui)
+
+# ------------------------------------------------------------------
+#  Shader compilation
+# ------------------------------------------------------------------
 if(WIN32)
-    target_link_libraries(V-Engine
-        ${GLFW_LIB}
-        imgui
-        enkiTS
-        Vulkan::Vulkan
-        )
-
-    set(SHADER_COMPILE_SCRIPT ${CMAKE_SOURCE_DIR}/Src/Shaders/compile.bat)
-
-    # Create custom target to compile shaders
-    add_custom_target(CompileShaders
-        COMMAND ${SHADER_COMPILE_SCRIPT}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/Src/Shaders
-        COMMENT "Running compile.bat to compile shaders"
-    )
-
-    # Make sure shaders compile before V-Engine builds
-    add_dependencies(V-Engine CompileShaders)
-
-elseif(UNIX)
-    if(APPLE)
-        # Add GLFW (as submodule)
-        set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-        set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-        set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-        set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
-        add_subdirectory(${CMAKE_SOURCE_DIR}/Dependencies/glfw)
-
-        target_link_libraries(imgui PUBLIC glfw)
-
-        target_link_libraries(V-Engine
-            imgui
-            glfw
-            enkiTS
-            Vulkan::Vulkan)
-    else()
-        add_subdirectory(${CMAKE_SOURCE_DIR}/Dependencies/glfw)
-
-        # Add GLFW (as submodule)
-        set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-        set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-        set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-        set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
-
-        target_link_libraries(V-Engine
-            imgui
-            glfw
-            enkiTS
-            Vulkan::Vulkan)
-
-    endif()
-    set(SHADER_COMPILE_SCRIPT ${CMAKE_SOURCE_DIR}/Src/Shaders/compile.sh)
-
+    set(SHADER_COMPILE_SCRIPT ${CMAKE_SOURCE_DIR}/Src/Rendering/Shaders/compile.bat)
+else()
+    set(SHADER_COMPILE_SCRIPT ${CMAKE_SOURCE_DIR}/Src/Rendering/Shaders/compile.sh)
     execute_process(COMMAND chmod +x ${SHADER_COMPILE_SCRIPT})
-
-    add_custom_target(CompileShaders
-        COMMAND ${SHADER_COMPILE_SCRIPT}
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/Src/Shaders
-        COMMENT "Running compile.sh to compile shaders"
-    )
-
-    add_dependencies(V-Engine CompileShaders)
-
 endif()
 
+add_custom_target(CompileShaders
+    COMMAND ${SHADER_COMPILE_SCRIPT}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/Src/Rendering/Shaders
+    COMMENT "Compiling shaders"
+)
+add_dependencies(V-Engine CompileShaders)
 
-
-# Organize files into filters for Visual Studio
-foreach(source_file ${SOURCES} ${HEADERS})
-    get_filename_component(source_path ${source_file} PATH)
-    file(RELATIVE_PATH source_path_rel ${CMAKE_SOURCE_DIR}/Src ${source_path})
-
-    if(NOT source_path_rel STREQUAL "")
-        string(REPLACE "/" "\\" group_path ${source_path_rel})
-        source_group("${group_path}" FILES ${source_file})
-    else()
-        source_group("" FILES ${source_file})
-    endif()
-endforeach()
+# ------------------------------------------------------------------
+#  Visual Studio: mirror the on-disk folders into solution filters
+# ------------------------------------------------------------------
+source_group(TREE ${CMAKE_SOURCE_DIR}/Src FILES
+    ${FOUNDATION_SOURCES} ${FOUNDATION_HEADERS}
+    ${RENDERING_SOURCES} ${RENDERING_HEADERS}
+    ${APPLICATION_SOURCES} ${APPLICATION_HEADERS})
