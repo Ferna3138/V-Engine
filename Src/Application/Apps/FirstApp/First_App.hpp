@@ -59,13 +59,18 @@ class FirstApp {
         // ImGui
         void setUpImgui();
         void renderUI();
+        void drawMainMenuBar();
         VkDescriptorPool imguiPool;
         // Backs ImGuiIO::IniFilename (ImGui keeps the pointer, so this must
-        // outlive the ImGui context). Empty appName -> shared default imgui.ini.
+        // outlive the ImGui context).
         std::string imguiIniFilePath;
         bool visualisePointLights = true;
-        
+
         void loadGameObjects();
+        entt::entity resolveOrCreateCamera();
+
+        std::string scenePath{"Scenes/sponza.json"};
+        bool sceneReloadRequested = false;
 
         vengine::JobSystem jobSystem;
 

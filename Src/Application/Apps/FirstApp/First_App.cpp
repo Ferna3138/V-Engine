@@ -165,20 +165,11 @@ void FirstApp::run() {
     setUpImgui();
 
 
-    // Camera: the scene file creates the camera entity; fall back to a default
-    // one if it didn't.
-    entt::entity cameraEntity = entt::null;
-    for (auto entity : scene.getRegistry().view<CameraComponent>()) {
-        cameraEntity = entity;
-        break;
-    }
-    if (cameraEntity == entt::null) {
-        cameraEntity = scene.createEntity("Camera");
-        scene.getRegistry().emplace<CameraComponent>(cameraEntity);
-        auto &cameraTransform = scene.getRegistry().get<TransformComponent>(cameraEntity);
-        cameraTransform.translation = {0.f, 1.5f, 0.5f};
-    }
-    auto &cameraComponent = scene.getRegistry().get<CameraComponent>(cameraEntity);
+    // The scene file creates the camera entity; resolveOrCreateCamera() falls
+    // back to a default one. Held by pointer so it can be rebound after a scene
+    // reload.
+    entt::entity cameraEntity = resolveOrCreateCamera();
+    CameraComponent* cameraComponent = &scene.getRegistry().get<CameraComponent>(cameraEntity);
     KeyboardMovementController cameraController{};
 
     RenderScene renderScene;
@@ -190,26 +181,31 @@ void FirstApp::run() {
     while (!window.shouldClose()) {
         glfwPollEvents();
 
+        if (sceneReloadRequested) {
+            sceneReloadRequested = false;
+            vkDeviceWaitIdle(device.device());
+            scene.getRegistry().clear();
+            loadGameObjects();
+            cameraEntity = resolveOrCreateCamera();
+            cameraComponent = &scene.getRegistry().get<CameraComponent>(cameraEntity);
+            cameraController = KeyboardMovementController{};
+        }
+
         auto newTime = std::chrono::high_resolution_clock::now();
         float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
         currentTime = newTime;
 
-        //cameraController.moveInPlaneXZ(window.getGLFWwindow(), frameTime, viewerObject);
-        
         cameraController.moveInPlaneXZ(window.getGLFWwindow(), frameTime, scene.getRegistry(), cameraEntity);
         cameraController.mouseMove(window.getGLFWwindow(), frameTime, scene.getRegistry(), cameraEntity);
-
-        // Handle mouse movement
-        //cameraController.mouseMove(window.getGLFWwindow(), frameTime, viewerObject);
         cameraController.bindScrollCallback(window.getGLFWwindow());
 
         auto &camTransform = scene.getRegistry().get<TransformComponent>(cameraEntity);
-        cameraComponent.camera.setView(camTransform.translation, camTransform.rotation);
+        cameraComponent->camera.setView(camTransform.translation, camTransform.rotation);
 
         float aspect = renderer.getAspectRatio();
-        
-        cameraComponent.camera.setPerspectiveProjection(
-            glm::radians(cameraComponent.cameraParams.fov), aspect, 0.1f, 100.f);
+
+        cameraComponent->camera.setPerspectiveProjection(
+            glm::radians(cameraComponent->cameraParams.fov), aspect, 0.1f, 100.f);
 
         scene.buildRenderScene(renderScene);
 
@@ -220,7 +216,7 @@ void FirstApp::run() {
                 frameIndex,
                 frameTime,
                 commandBuffer,
-                cameraComponent.camera,
+                cameraComponent->camera,
                 globalDescriptorSets[frameIndex],
                 textureManager.getDescriptorSet(),
                 renderScene
@@ -228,10 +224,10 @@ void FirstApp::run() {
 
             // Update
             GlobalUbo ubo{};
-            ubo.projection = cameraComponent.camera.getProjection();
-            ubo.view = cameraComponent.camera.getView();
-            ubo.inverseView = cameraComponent.camera.getInverseView();
-            ubo.inverseProj = cameraComponent.camera.getInverseProj();
+            ubo.projection = cameraComponent->camera.getProjection();
+            ubo.view = cameraComponent->camera.getView();
+            ubo.inverseView = cameraComponent->camera.getInverseView();
+            ubo.inverseProj = cameraComponent->camera.getInverseProj();
             
             pointLightSystem.update(frameInfo, ubo);
             uboBuffers[frameIndex]->writeToBuffer(&ubo);
@@ -319,9 +315,20 @@ void FirstApp::run() {
 
 
 void FirstApp::loadGameObjects() {
-    if (!vengine::loadScene("Scenes/sponza.json", scene, device, textureManager)) {
-        std::cerr << "Failed to load Scenes/sponza.json - starting with an empty scene\n";
+    if (!vengine::loadScene(scenePath, scene, device, textureManager)) {
+        std::cerr << "Failed to load " << scenePath << " - starting with an empty scene\n";
     }
+}
+
+entt::entity FirstApp::resolveOrCreateCamera() {
+    auto& registry = scene.getRegistry();
+    for (auto entity : registry.view<CameraComponent>())
+        return entity;
+
+    entt::entity camera = scene.createEntity("Camera");
+    registry.emplace<CameraComponent>(camera);
+    registry.get<TransformComponent>(camera).translation = {0.f, 1.5f, 0.5f};
+    return camera;
 }
 
 
@@ -334,7 +341,7 @@ void FirstApp::renderUI() {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking;
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_MenuBar;
     window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
     window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
     window_flags |= ImGuiWindowFlags_NoBackground;
@@ -347,32 +354,60 @@ void FirstApp::renderUI() {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
     ImGui::Begin("DockSpace", nullptr, window_flags);
-
-    
     ImGui::PopStyleVar(2);
-    
+
+    drawMainMenuBar();
+
     ImGuiID dockspace_id = ImGui::GetID("MyDockspace");
     ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
-    
+
     ImGui::End();
-    
+
     // === Control Panel ===
 
     ImGui::Begin("Control Panel");
-    
+
     float fps = ImGui::GetIO().Framerate;
     ImGui::Text("FPS: %.1f (%.3f ms/frame)", fps, 1000.0f / fps);
 
     ImGui::Separator();
-    
-    ImGui::Checkbox("Visualise Point Lights", &visualisePointLights);
-
-    if (ImGui::Button("Save Scene"))
-        vengine::saveScene("Scenes/sponza.json", scene);
 
     sceneHierarchyPanel.draw();
     ImGui::End();
     ImGui::Render();
+}
+
+void FirstApp::drawMainMenuBar() {
+    if (ImGui::BeginMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Save Scene", "Ctrl+S"))
+                vengine::saveScene(scenePath, scene);
+            if (ImGui::MenuItem("Reload Scene"))
+                sceneReloadRequested = true;
+            ImGui::Separator();
+            if (ImGui::MenuItem("Exit"))
+                glfwSetWindowShouldClose(window.getGLFWwindow(), GLFW_TRUE);
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Edit")) {
+            ImGui::MenuItem("Undo", "Ctrl+Z", false, false);
+            ImGui::MenuItem("Redo", "Ctrl+Y", false, false);
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("View")) {
+            ImGui::MenuItem("Visualise Point Lights", nullptr, &visualisePointLights);
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMenuBar();
+    }
+
+    // Keyboard shortcut, active regardless of which panel has focus.
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
+        vengine::saveScene(scenePath, scene);
 }
 
 void FirstApp::setUpImgui() {
