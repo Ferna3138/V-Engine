@@ -115,6 +115,7 @@ void FirstApp::run() {
         FrameInfo fi = *activeFrame; fi.commandBuffer = cb;
         depthPrepassSystem.render(fi);
     });
+    
     frameGraph.registerRenderPass("forward", [&](VkCommandBuffer cb) {
         FrameInfo fi = *activeFrame; fi.commandBuffer = cb;
         simpleRenderSystem.renderGameObjects(fi);
@@ -124,6 +125,7 @@ void FirstApp::run() {
     setUpImgui();
 
 
+    // Camera
     entt::entity cameraEntity = scene.createEntity("Camera");
     auto &cameraComponent = scene.getRegistry().emplace<CameraComponent>(cameraEntity);
     auto &cameraTransform = scene.getRegistry().get<TransformComponent>(cameraEntity);
@@ -138,7 +140,7 @@ void FirstApp::run() {
     KeyboardMovementController cameraController{};
 
 
-
+    // FPS
     auto currentTime = std::chrono::high_resolution_clock::now();
 
     while (!window.shouldClose()) {
@@ -269,9 +271,7 @@ void FirstApp::run() {
 
 
 void FirstApp::loadGameObjects() {
-    //std::shared_ptr<Model> model = Model::createModelFromFile(device, textureManager, "Models/Sponza_obj/sponza.obj");
     std::shared_ptr<Model> model = Model::createModelFromFile(device, textureManager, "Models/GLTF/Sponza/glTF/Sponza.gltf");
-    //std::shared_ptr<Model> model = Model::createModelFromFile(device, textureManager, "Models/GLTF/Sibenik/scene.gltf");
 
     if (model) {
         entt::entity sponza = scene.createModelEntity(model);

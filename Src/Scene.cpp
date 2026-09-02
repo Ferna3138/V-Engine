@@ -11,11 +11,32 @@ entt::entity Scene::createEntity(const std::string& name) {
     return entity;
 }
 
+
+// Lights
+entt::entity Scene::createAreaLight(glm::vec4 colour, float width, float height) {
+    auto entity = createEntity("AreaLight");
+    registry.emplace<AreaLightComponent>(entity, AreaLightComponent{colour, width, height});
+    return entity;
+}
+
+entt::entity Scene::createSpotLight(glm::vec4 colour, float radius, float innerCutoff, float outerCutoff) {
+    auto entity = createEntity("SpotLight");
+    registry.emplace<SpotLightComponent>(entity, SpotLightComponent{colour, radius, innerCutoff, outerCutoff});
+    return entity;
+}
+
+entt::entity Scene::createDirectionalLight(glm::vec4 colour, glm::vec3 direction) {
+    auto entity = createEntity("DirectionalLight");
+    registry.emplace<DirectionalLightComponent>(entity, DirectionalLightComponent{colour, direction});
+    return entity;
+}
+
 entt::entity Scene::createPointLight(glm::vec4 colour, float radius) {
     auto entity = createEntity("PointLight");
     registry.emplace<PointLightComponent>(entity, PointLightComponent{colour, radius});
     return entity;
 }
+
 
 entt::entity Scene::createModelEntity(std::shared_ptr<Model> model) {
     auto entity = createEntity("Model");

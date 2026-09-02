@@ -48,6 +48,12 @@ struct SpotLightComponent {
     float outerCutoff;
 };
 
+struct AreaLightComponent {
+    glm::vec4 colour;
+    float width;
+    float height;
+};
+
 struct DirectionalLightComponent {
     glm::vec4 colour;
     glm::vec3 direction;

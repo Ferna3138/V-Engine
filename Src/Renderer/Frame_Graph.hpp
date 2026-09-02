@@ -59,6 +59,8 @@ struct FrameGraphNode {
 
     VkRenderPass renderPass = VK_NULL_HANDLE;
     VkFramebuffer framebuffer = VK_NULL_HANDLE;
+
+    bool useSecondaryCommandBuffers = false;
 };
 
 class FrameGraph {
@@ -91,6 +93,10 @@ class FrameGraph {
         OutputImage getPresentOutput() const;
 
         void createResources(Device& device);
+
+        void setNodeUsesSecondaryCommandBuffers(const std::string& nodeName, bool value);
+        VkExtent2D getNodeExtent(const std::string& nodeName);
+
         ~FrameGraph();
 
     private:
@@ -116,5 +122,6 @@ class FrameGraph {
         std::vector<uint32_t> sortedNodeOrder;
         
         std::unordered_map<std::string, FrameGraphRenderPassFn> renderPassCallbacks;
+        
 
 };

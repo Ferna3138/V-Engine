@@ -557,3 +557,18 @@ void FrameGraph::execute(VkCommandBuffer commandBuffer) {
         out.currentLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     }
 }
+
+void FrameGraph::setNodeUsesSecondaryCommandBuffers(const std::string& nodeName, bool value) {
+    uint32_t idx = findNode(nodeName);
+    if (idx == UINT32_MAX) throw std::runtime_error("Frame graph has no node named '" + nodeName + "'");
+    nodes[idx].useSecondaryCommandBuffers = value;
+}
+
+VkExtent2D FrameGraph::getNodeExtent(const std::string& nodeName) {
+    uint32_t idx = findNode(nodeName);
+    if (idx == UINT32_MAX) throw std::runtime_error("Frame graph has no node named '" + nodeName + "'");
+    std::vector<AttachmentEntry> entries = gatherAttachmentEntries(nodes[idx]);
+    if (entries.empty()) return {0, 0};
+    const FrameGraphResource& res = resources[entries[0].resourceIndex];
+    return { res.resolutionWidth, res.resolutionHeight };
+}

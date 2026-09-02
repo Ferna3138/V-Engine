@@ -8,7 +8,13 @@ public:
     Scene();
 
     entt::entity createEntity(const std::string& name = "Entity");
+    
+    // Lights
+    entt::entity createSpotLight(glm::vec4 colour, float radius, float innerCutoff, float outerCutoff);
+    entt::entity createAreaLight(glm::vec4 colour, float width, float height);
+    entt::entity createDirectionalLight(glm::vec4 colour, glm::vec3 direction);
     entt::entity createPointLight(glm::vec4 colour, float radius);
+
     entt::entity createModelEntity(std::shared_ptr<Model> model);
 
     void update(float dt);      // Call per-frame for logic

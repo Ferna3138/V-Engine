@@ -2,12 +2,24 @@
 
 Roadmap
 
-- Ray Tracing Pipeline
+- Async Compute
+
+- GPU Driven Rendering
+
+- View Culling
+
+- Volumetric Fog
+
+- Light source optimisation
+
+- Ray Tracing Pipeline (some things were already implemented)
 
 - TLAS & BLAS
 
 - Shader Binding Table
 
-- Parallax Occlusion Mapping
+- Ray Traced Shadow Tracing
 
-- Silhouette Parallax Occlusion Mapping
+- DDGI (?)
+
+- Ray Traced Reflections
