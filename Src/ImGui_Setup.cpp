@@ -79,6 +79,23 @@ void SceneHierarchyPanel::drawInspector(){
     
     if (auto* camera = registry.try_get<CameraComponent>(selectedEntity)){
         ImGui::Separator();
+        bool physical = (camera->cameraModel == CameraModel::Physical);
+        if (ImGui::Checkbox("Physically Based", &physical))
+            camera->cameraModel = physical ? CameraModel::Physical : CameraModel::Pinhole;
+
+        if (camera->cameraModel == CameraModel::Physical) {
+            ImGui::SliderFloat("Sensor Width", &camera->cameraParams.sensor_width, 0.f, 70.f);
+            ImGui::SliderFloat("Sensor Height", &camera->cameraParams.sensor_height, 0.f, 70.f);
+            ImGui::SliderFloat("Focal Length", &camera->cameraParams.focal_length, 0.f, 500.f);
+            ImGui::SliderFloat("Aperture", &camera->cameraParams.aperture, 0.f, 32.f);
+            ImGui::SliderFloat("Focus Distance", &camera->cameraParams.focus_distance, 0.f, 150.f);
+            ImGui::SliderFloat("Shutter Speed", &camera->cameraParams.shutter_speed, 0.f, 360.f);
+            ImGui::SliderFloat("Exposure", &camera->cameraParams.exposure, 0.f, 10.f);
+            ImGui::SliderInt("White Balance", &camera->cameraParams.white_balance, 1000, 10000);
+        } else {
+            ImGui::SliderFloat("FOV", &camera->cameraParams.fov, 10.f, 120.f);
+        }
+
     }
     
     if (auto* model = registry.try_get<ModelComponent>(selectedEntity)){

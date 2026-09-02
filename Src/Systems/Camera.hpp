@@ -7,20 +7,24 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/quaternion.hpp"
 
+enum class CameraModel { Pinhole, Physical };
+
+
 struct CamParameters{
     glm::vec3 position = {0.f,0.f,0.f};
-    uint32_t sendor_width = 0;
-    uint32_t sendor_height = 0;
-    float focal_length = 0.f;
-    float fov = 0.f;
+    float sensor_width = 36.f;
+    float sensor_height = 24.f;
+    float focal_length = 24.f;
+    float fov = 50.f;
     float near_plane = 0.f;
     float far_plane = 0.f;
     float aspect_ratio = 0.f;
-    float aperture = 0.f;
-    float focus_distance = 0.f;
+    float aperture = 4.f;
+    float focus_distance = 2.f;
     float shutter_speed = 0.f;
+    float shutter_angle = 0.f;
     float exposure = 0.f;
-    uint32_t white_balance = 0.f;
+    int white_balance = 6500.f;
 };
 
 class Camera{
@@ -41,6 +45,8 @@ class Camera{
 
         const glm::vec3 getPosition() const { return glm::vec3(inverseViewMatrix[3]); }
     private:
+        
+        CameraModel cameraModel = CameraModel::Pinhole;
         glm::mat4 projectionMatrix{1.f};
         glm::mat4 viewMatrix{1.f};
         glm::mat4 inverseViewMatrix{1.f};

@@ -207,6 +207,7 @@ void FirstApp::run() {
         cameraComponent.camera.setView(camTransform.translation, camTransform.rotation);
 
         float aspect = renderer.getAspectRatio();
+        
         cameraComponent.camera.setPerspectiveProjection(glm::radians(50.f), aspect, 0.1f, 100.f);
 
         if (auto commandBuffer = renderer.beginFrame()) {

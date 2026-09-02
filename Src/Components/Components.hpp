@@ -67,4 +67,6 @@ struct PointLightComponent {
 // Camera
 struct CameraComponent {
     Camera camera;
+    CamParameters cameraParams;
+    CameraModel cameraModel = CameraModel::Pinhole;
 };
