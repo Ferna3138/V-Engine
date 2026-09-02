@@ -16,12 +16,4 @@ const std::filesystem::path& projectRoot();
 // path. Absolute inputs are returned unchanged. Does not check for existence.
 std::string resolveAssetPath(const std::string& path);
 
-// Absolute path of the ImGui layout (.ini) file to use.
-//   - no argument: the shared default, <root>/imgui.ini, used by every app.
-//   - appName given: a layout dedicated to that app, <root>/Config/<appName>.imgui.ini
-//     (the Config directory is created if needed).
-// Anchoring at the project root keeps the layout stable no matter which folder
-// the app is launched from.
-std::string imguiIniPath(const std::string& appName = {});
-
 } // namespace vengine

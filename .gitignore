@@ -402,14 +402,17 @@ FodyWeavers.xsd
 
 build/
 
+# Stray GLFW build tree accidentally generated under Src/ (the real dependency
+# lives in /Dependencies).
+Src/Dependencies/
+
 
 Models/GLTF
 
 pipeline_cache.bin
 
-# ImGui layout: only the shared file at the repo root (and per-app layouts
-# under Config/) are tracked. Stray imgui.ini files written into run/build
-# folders are ignored.
+# ImGui layout: each app's committed layout lives next to its code
+# (Src/Application/Apps/<App>/imgui.ini). Stray imgui.ini files written into
+# run/build folders are ignored.
 imgui.ini
-!/imgui.ini
-!/Config/*.imgui.ini
+!/Src/Application/Apps/*/imgui.ini

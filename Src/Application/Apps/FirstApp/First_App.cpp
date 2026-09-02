@@ -403,10 +403,10 @@ void FirstApp::setUpImgui() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
-    // Persist the ImGui layout at a fixed, project-root location so it isn't
-    // reset when the app is launched from a different folder. Pass an app name
-    // to imguiIniPath() to give this app its own dedicated layout instead.
-    imguiIniFilePath = vengine::imguiIniPath();
+    // Keep this app's ImGui layout next to its own code, resolved against the
+    // project root so it's stable no matter which folder the app is launched
+    // from.
+    imguiIniFilePath = vengine::resolveAssetPath("Src/Application/Apps/FirstApp/imgui.ini");
     ImGui::GetIO().IniFilename = imguiIniFilePath.c_str();
 
 

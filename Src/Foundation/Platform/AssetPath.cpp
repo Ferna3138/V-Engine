@@ -85,14 +85,4 @@ std::string resolveAssetPath(const std::string& path) {
     return (projectRoot() / p).lexically_normal().string();
 }
 
-std::string imguiIniPath(const std::string& appName) {
-    if (appName.empty())
-        return resolveAssetPath("imgui.ini");
-
-    fs::path dir = projectRoot() / "Config";
-    std::error_code ec;
-    fs::create_directories(dir, ec);
-    return (dir / (appName + ".imgui.ini")).lexically_normal().string();
-}
-
 } // namespace vengine
