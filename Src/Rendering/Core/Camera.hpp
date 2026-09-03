@@ -33,6 +33,10 @@ struct CamParameters{
     float blade_rotation  = 0.f;    // degrees
     int   dof_samples     = 32;
     float max_coc         = 30.f;   // blur ceiling, full-res px
+
+    bool motion_blur_enabled = true;
+    int   mb_samples = 12;
+    float mb_max_px  = 24.f;
 };
 
 class Camera{

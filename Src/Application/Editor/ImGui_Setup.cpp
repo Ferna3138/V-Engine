@@ -126,6 +126,12 @@ void SceneHierarchyPanel::drawInspector(){
                 ImGui::DragInt  ("Bokeh Samples",   &camera->cameraParams.dof_samples, 1, 8, 64, "%d", clamp);
                 ImGui::DragFloat("Max Blur (px)",   &camera->cameraParams.max_coc, 1.0f, 2.f, 60.f, "%.1f", clamp);
             }
+            ImGui::SeparatorText("Motion Blur");
+            ImGui::Checkbox("Enable Motion Blur", &camera->cameraParams.motion_blur_enabled);
+            if (camera->cameraParams.motion_blur_enabled) {
+                ImGui::DragInt  ("MB Samples", &camera->cameraParams.mb_samples, 1, 4, 32, "%d", clamp);
+                ImGui::DragFloat("MB Max (px)", &camera->cameraParams.mb_max_px, 1.0f, 4.f, 128.f, "%.1f", clamp);
+            }
         } else {
             ImGui::SliderFloat("FOV", &camera->cameraParams.fov, 10.f, 120.f, "%.1f", clamp);
         }

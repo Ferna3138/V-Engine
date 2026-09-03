@@ -32,6 +32,8 @@
 struct DofParams  { glm::vec4 dof;      glm::vec4 extra; };  // 32B — dof_downsample
 struct BlurParams { glm::vec4 params; };                     // 16B — dof_blur
 struct PostParams { glm::vec4 exposure; };                   // 16B — tonemap
+struct MotionBlurParams { glm::mat4 reprojection{1.f}; glm::vec4 params{0.f}; };  // 80 B
+
 
 FirstApp::FirstApp() {
     jobSystem.initialize();
@@ -97,10 +99,15 @@ void FirstApp::run() {
             .build(globalDescriptorSets[i]);
     }
 
-    // Filled fresh each frame (see the render loop), read by the post callback.
+    // Camera DoF
+    // Filled fresh each frame
     DofParams  dofP{};
     BlurParams blurP{};
     PostParams postP{};
+    // Motion Blur
+    MotionBlurParams mbP{};
+    glm::mat4 prevViewProj{1.f};
+    bool haveHistory = false;
 
     // Geometry is rendered by the frame graph (depth_prepass -> forward), so the
     // render systems build their pipelines against the graph's render passes.
@@ -119,12 +126,19 @@ void FirstApp::run() {
         globalSetLayout->getDescriptorSetLayout()};
     
     // Full Screen Passes
+    FullscreenPass motionBlur{
+        device, frameGraph.getNodeRenderPass("motion_blur"), *globalPool,
+        "Src/Rendering/Shaders/motion_blur.frag.spv",
+        { frameGraph.getResourceImageView("scene_colour"), frameGraph.getResourceImageView("depth") },
+        sizeof(MotionBlurParams)
+    };
+
     FullscreenPass dofDownsample{
         device,
         frameGraph.getNodeRenderPass("dof_downsample"),
         *globalPool,
         "Src/Rendering/Shaders/dof_downsample.frag.spv",
-        { frameGraph.getResourceImageView("scene_colour"),   // -> binding 0  sceneColour
+        { frameGraph.getResourceImageView("scene_mb"),   // -> binding 0  sceneColour
         frameGraph.getResourceImageView("depth") },        // -> binding 1  sceneDepth
         sizeof(DofParams)
     };
@@ -142,7 +156,7 @@ void FirstApp::run() {
         frameGraph.getNodeRenderPass("post"), 
         *globalPool,
         "Src/Rendering/Shaders/tonemap.frag.spv",
-        {frameGraph.getResourceImageView("scene_colour"), frameGraph.getResourceImageView("dof_far_b")},
+        {frameGraph.getResourceImageView("scene_mb"), frameGraph.getResourceImageView("dof_far_b")},
         sizeof(PostParams)
     };
     
@@ -208,7 +222,7 @@ void FirstApp::run() {
     frameGraph.registerRenderPass("dof_downsample", [&](VkCommandBuffer cb){dofDownsample.render(cb, &dofP, sizeof(dofP)); });
     frameGraph.registerRenderPass("dof_blur",       [&](VkCommandBuffer cb){ dofBlur.render(cb, &blurP, sizeof(blurP)); });
     frameGraph.registerRenderPass("post",           [&](VkCommandBuffer cb){ post.render(cb, &postP, sizeof(postP)); });
-
+    frameGraph.registerRenderPass("motion_blur",    [&](VkCommandBuffer cb){ motionBlur.render(cb, &mbP, sizeof(mbP)); });
 
 
 
@@ -239,6 +253,7 @@ void FirstApp::run() {
 
         if (sceneReloadRequested) {
             sceneReloadRequested = false;
+            haveHistory = false;
             device.waitIdle();
             scene.getRegistry().clear();
             loadGameObjects();
@@ -284,6 +299,18 @@ void FirstApp::run() {
             blurP.params = glm::vec4(float(p.aperture_blades), glm::radians(p.blade_rotation),
                                     float(p.dof_samples), 0.f);
             postP.exposure = glm::vec4(ex.whiteBalanceGain, ex.scale);
+
+            glm::mat4 currVP = cameraComponent->camera.getProjection() * cameraComponent->camera.getView();
+            mbP.reprojection = haveHistory ? prevViewProj * glm::inverse(currVP) : glm::mat4(1.f);
+
+            // Scale the reconstructed per-frame motion up to the shutter-open
+            // interval: blurLength = perFrameMotion * (shutterTime / frameTime).
+            float shutterTime = (p.shutter_angle / 360.f) / (p.fps < 1.f ? 1.f : p.fps);
+            float mbScale     = (frameTime > 1e-5f) ? shutterTime / frameTime : 0.f;
+            mbP.params = glm::vec4(mbScale, p.mb_max_px, float(p.mb_samples),
+                       (physical && p.motion_blur_enabled) ? 1.0f : 0.0f);
+            prevViewProj = currVP;
+            haveHistory = true;
         }
 
         //printf("exposure=%.4f  wb=(%.2f, %.2f, %.2f)\n", ex.scale, ex.whiteBalanceGain.x, ex.whiteBalanceGain.y, ex.whiteBalanceGain.z);
