@@ -74,7 +74,10 @@ void SceneHierarchyPanel::drawInspector(){
 
     auto& registry = scene.getRegistry();
     auto& transform = registry.get<TransformComponent>(selectedEntity);
-    if (cachedRotationEntity != selectedEntity) {
+    // Refresh the edited euler from the live transform whenever we're not mid-drag,
+    // so flying the camera keeps the field current; hold it steady while dragging
+    // to avoid eulerAngles() flipping under the user.
+    if (cachedRotationEntity != selectedEntity || !ImGui::IsAnyItemActive()) {
         editedEulerDegrees = glm::degrees(glm::eulerAngles(transform.rotation));
         cachedRotationEntity = selectedEntity;
     }

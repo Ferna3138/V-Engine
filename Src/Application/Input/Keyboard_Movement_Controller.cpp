@@ -8,12 +8,14 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <cmath>
 #include <iostream>
 
 
 
 void KeyboardMovementController::mouseMove( GLFWwindow *window, float dt, entt::registry &registry, entt::entity entity) {
     auto &transform = registry.get<TransformComponent>(entity);
+    adoptExternalRotation(transform);
 
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
@@ -80,6 +82,7 @@ void KeyboardMovementController::mouseMove( GLFWwindow *window, float dt, entt::
 
 void KeyboardMovementController::moveInPlaneXZ(GLFWwindow *window, float dt, entt::registry &registry, entt::entity entity) {
     auto &transform = registry.get<TransformComponent>(entity);
+    adoptExternalRotation(transform);
 
     glm::vec3 rotate{0.f};
     if (glfwGetKey(window, keys.lookRight) == GLFW_PRESS) rotate.y += 1.f;
@@ -127,4 +130,20 @@ void KeyboardMovementController::bindScrollCallback(GLFWwindow* window) {
 void KeyboardMovementController::updateRotation(TransformComponent& transform) {
     transform.rotation = glm::angleAxis(yaw, glm::vec3(0.f, 1.f, 0.f))
                         * glm::angleAxis(pitch, glm::vec3(1.f, 0.f, 0.f));
+    lastApplied = transform.rotation;
+}
+
+void KeyboardMovementController::syncFromTransform(const TransformComponent& transform) {
+    // Forward = rotation * +Z (matches Camera::setView, which takes column 2).
+    // With q = Ry(yaw) * Rx(pitch):  fwd = (cos p·sin y, -sin p, cos p·cos y)
+    const glm::vec3 fwd = glm::normalize(transform.rotation * glm::vec3(0.f, 0.f, 1.f));
+    yaw   = std::atan2(fwd.x, fwd.z);
+    pitch = -std::asin(glm::clamp(fwd.y, -1.f, 1.f));
+    lastApplied = transform.rotation;
+}
+
+void KeyboardMovementController::adoptExternalRotation(const TransformComponent& transform) {
+    // |dot| == 1 for the same rotation (or its negation); < 1 means it changed.
+    if (glm::abs(glm::dot(transform.rotation, lastApplied)) < 0.99999f)
+        syncFromTransform(transform);
 }

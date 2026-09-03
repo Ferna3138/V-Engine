@@ -24,6 +24,10 @@ public:
     void moveInPlaneXZ(GLFWwindow *window, float dt, entt::registry &registry, entt::entity entity);
     void mouseMove(GLFWwindow *window, float dt, entt::registry &registry, entt::entity entity);
 
+    // Adopt the orientation currently held by a transform (loaded scene, inspector
+    // edit) so the controller doesn't clobber it. Call whenever (re)binding a camera.
+    void syncFromTransform(const TransformComponent &transform);
+
     void bindScrollCallback(GLFWwindow *window);
 
     KeyMappings keys{};
@@ -38,6 +42,11 @@ private:
 
     float yaw = 0.f;
     float pitch = 0.f;
+
+    // Last rotation this controller wrote. If the transform differs from it at the
+    // start of a frame, something else changed it (inspector, gizmo) -> re-adopt.
+    glm::quat lastApplied{1.f, 0.f, 0.f, 0.f};
+    void adoptExternalRotation(const TransformComponent &transform);
 
     inline static float scrollOffset = 0.f;
     static void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
