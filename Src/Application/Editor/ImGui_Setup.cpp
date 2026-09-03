@@ -17,6 +17,18 @@ void SceneHierarchyPanel::draw() {
             name = tag->name;
         }
 
+        // Visibility toggle on the left of the row (models and lights)
+        bool* visible = nullptr;
+        if (auto* model = registry.try_get<ModelComponent>(entity))                  visible = &model->visible;
+        else if (auto* light = registry.try_get<PointLightComponent>(entity))        visible = &light->visible;
+        else if (auto* light = registry.try_get<SpotLightComponent>(entity))         visible = &light->visible;
+        else if (auto* light = registry.try_get<DirectionalLightComponent>(entity))  visible = &light->visible;
+        else if (auto* light = registry.try_get<AreaLightComponent>(entity))         visible = &light->visible;
+        if (visible) {
+            ImGui::Checkbox("##visible", visible);
+            ImGui::SameLine();
+        }
+
         std::string combinedLabel = name;
         if (registry.all_of<PointLightComponent>(entity)) {
             combinedLabel += " (Point Light)";

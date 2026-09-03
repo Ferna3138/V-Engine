@@ -127,6 +127,7 @@ bool loadScene(const std::string& path, Scene& scene,
             }
             entt::entity entity = scene.createModelEntity(model, modelPath);
             registry.get<TagComponent>(entity).name = name;
+            registry.get<ModelComponent>(entity).visible = entJson.value("visible", true);
             if (entJson.contains("transform"))
                 readTransform(entJson.at("transform"), registry.get<TransformComponent>(entity));
         } else if (entJson.contains("pointLight")) {
@@ -135,6 +136,7 @@ bool loadScene(const std::string& path, Scene& scene,
             float radius = lightJson.value("radius", 0.1f);
             entt::entity entity = scene.createPointLight(colour, radius);
             registry.get<TagComponent>(entity).name = name;
+            registry.get<PointLightComponent>(entity).visible = lightJson.value("visible", true);
             if (entJson.contains("transform"))
                 readTransform(entJson.at("transform"), registry.get<TransformComponent>(entity));
         } else {
@@ -174,10 +176,12 @@ bool saveScene(const std::string& path, const Scene& scene) {
             entJson["pointLight"] = json{
                 {"colour", writeVec4(light->colour)},
                 {"radius", light->radius},
+                {"visible", light->visible},
             };
         } else if (const auto* model = registry.try_get<const ModelComponent>(entity)) {
             if (model->sourcePath.empty()) continue;   // procedurally-built model, nothing to reference
             entJson["model"] = model->sourcePath;
+            entJson["visible"] = model->visible;
         }
 
         entities.push_back(entJson);

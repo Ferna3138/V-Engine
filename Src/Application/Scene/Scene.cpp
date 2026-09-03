@@ -57,7 +57,7 @@ void Scene::buildRenderScene(RenderScene& out) {
     for (auto entity : models) {
         auto& transform = models.get<TransformComponent>(entity);
         auto& modelComp = models.get<ModelComponent>(entity);
-        if (!modelComp.model) continue;
+        if (!modelComp.model || !modelComp.visible) continue;
 
         RenderObject object{};
         object.modelMatrix = toMat4(transform);
@@ -70,6 +70,7 @@ void Scene::buildRenderScene(RenderScene& out) {
     for (auto entity : lights) {
         auto& transform = lights.get<TransformComponent>(entity);
         auto& light = lights.get<PointLightComponent>(entity);
+        if (!light.visible) continue;
         out.lights.push_back(RenderLight{transform.translation, light.colour, light.radius});
     }
 }

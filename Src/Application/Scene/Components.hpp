@@ -38,7 +38,8 @@ inline glm::mat3 toNormalMatrix(const TransformComponent &transform) {
 
 struct ModelComponent {
     std::shared_ptr<Model> model{};
-    std::string sourcePath{};   // project-root-relative file the model was loaded from; kept for serialization
+    std::string sourcePath{};
+    bool visible = true;   // toggled from the Outliner; hidden models are skipped when building the render scene
 };
 
 // Lighting
@@ -47,22 +48,26 @@ struct SpotLightComponent {
     float radius;
     float innerCutoff;
     float outerCutoff;
+    bool visible = true;
 };
 
 struct AreaLightComponent {
     glm::vec4 colour;
     float width;
     float height;
+    bool visible = true;
 };
 
 struct DirectionalLightComponent {
     glm::vec4 colour;
     glm::vec3 direction;
+    bool visible = true;
 };
 
 struct PointLightComponent {
     glm::vec4 colour;
     float radius;
+    bool visible = true;
 };
 
 // Camera
