@@ -23,8 +23,8 @@ TextureManager::TextureManager(Device& _device, AsyncLoader& _loader, enki::Task
 
 
 
-    // Fallback texture
-    textures.push_back(std::make_unique<Texture>(device, 1, 1, blackPixel, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT));
+    // Fallback textures. Slot 0 = MR neutral (linear/UNORM: R=AO, G=roughness, B=metal).
+    textures.push_back(std::make_unique<Texture>(device, 1, 1, mrNeutral, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT));
     writeTextureToSlot(*textures.back(), 0);
     textures.push_back(std::make_unique<Texture>(device, 1, 1, whitePixel, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT));
     writeTextureToSlot(*textures.back(), 1);
@@ -64,6 +64,27 @@ uint32_t TextureManager::addTexture(const std::string& filepath, VkFormat format
     return slot;
 }
 
+
+uint32_t TextureManager::addRawTexture(const std::string& key, uint8_t r, uint8_t g, uint8_t b,
+                                       uint8_t a, VkFormat format) {
+    auto it = pathToIndex.find(key);
+    if (it != pathToIndex.end()) return it->second;
+
+    if (nextIndex >= MAX_BINDLESS_TEXTURES)
+        throw std::runtime_error("Maximum number of bindless textures reached.");
+
+    uint32_t slot = nextIndex++;
+    pathToIndex[key] = slot;
+
+    uint8_t pixel[4] = {r, g, b, a};
+    textures.push_back(std::make_unique<Texture>(
+        device, 1, 1, pixel, format,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT));
+
+    std::lock_guard<std::mutex> lock(mutex);
+    writeTextureToSlot(*textures.back(), slot);
+    return slot;
+}
 
 void TextureManager::writeTextureToSlot(Texture& tex, uint32_t slot){
     VkDescriptorImageInfo imageInfo{};

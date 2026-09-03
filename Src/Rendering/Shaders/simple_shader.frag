@@ -10,7 +10,7 @@ layout(location = 1) in vec3 fragPosWorld;
 layout(location = 2) in vec3 fragNormalWorld;
 layout(location = 3) in vec2 fragUV;
 layout(location = 4) flat in int fragTexIndex;
-layout(location = 5) flat in int fragSpecIndex;
+layout(location = 5) flat in int fragMrIndex;
 layout(location = 6) flat in int fragNormalIndex;
 layout(location = 7) in vec3 fragTangentWorld;
 
@@ -43,12 +43,14 @@ void main() {
     vec3 cameraPosWorld = ubo.invView[3].xyz;
     vec3 viewDirection = normalize(cameraPosWorld - fragPosWorld);
 
-    // Material parameters for PBR
-    float roughness = 0.3;
-    float metallic = 0.4;
+    // Metallic-roughness workflow: G = roughness, B = metalness (glTF convention).
+    // Loaders bake OBJ shininess / glTF scalar factors into this texture, so every
+    // surface samples the same way.
+    vec3 mrSample = texture(textures[nonuniformEXT(fragMrIndex)], fragUV).rgb;
+    float roughness = clamp(mrSample.g, 0.045, 1.0);
+    float metallic  = mrSample.b;
     vec3 albedo = texture(textures[nonuniformEXT(fragTexIndex)], fragUV).rgb;
-    vec3 specularSample = texture(textures[nonuniformEXT(fragSpecIndex)], fragUV).rgb;
-    vec3 F0 = mix(vec3(0.04), albedo, metallic) * specularSample;
+    vec3 F0 = mix(vec3(0.04), albedo, metallic);
 
     for (int i = 0; i < ubo.numLights; i++) {
         PointLight light = ubo.pointLights[i];

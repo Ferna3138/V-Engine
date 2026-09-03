@@ -22,13 +22,22 @@ class TextureManager{
 
         uint32_t addTexture(const std::string& filepath, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
 
+        // Creates (or returns a cached) 1x1 texture with a constant colour. Used to
+        // bake scalar material factors (e.g. an OBJ shininess -> roughness value)
+        // into an MR texture the bindless shader can sample uniformly. Uploaded
+        // synchronously; `key` must be unique per colour.
+        uint32_t addRawTexture(const std::string& key, uint8_t r, uint8_t g, uint8_t b,
+                               uint8_t a = 255, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM);
+
         VkDescriptorSetLayout getLayout() const { return setLayout->getDescriptorSetLayout(); }
         VkDescriptorSet getDescriptorSet() const { return descriptorSet; }
     
     private:
         Device& device;
         
-        uint8_t blackPixel[4]  = {0, 0, 0, 255};
+        // Reserved fallback slots (0,1,2). MR neutral = AO 1, roughness 1, metal 0
+        // so an untextured surface is matte dielectric, never chrome.
+        uint8_t mrNeutral[4]   = {255, 255, 0, 255};
         uint8_t whitePixel[4]  = {255, 255, 255, 255};
         uint8_t flatNormal[4]  = {128, 128, 255, 255};
 

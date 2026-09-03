@@ -25,7 +25,7 @@ class Model{
             glm::vec3 normal;
             glm::vec2 uv;
             int textureIndex{-1};
-            int specularIndex{-1};
+            int mrIndex{-1};          // metallic-roughness texture (G = roughness, B = metalness)
             int normalIndex{-1};
             glm::vec3 tangent{0.f};
 
@@ -46,7 +46,7 @@ class Model{
                                             // illumination model (see http://www.fileformat.info/format/material/)
             int illum     = 0;
             int diffuseTexID = -1;
-            int specularTexID = -1;
+            int mrTexID = -1;         // baked metallic-roughness (from Ns / factors)
             int normalTexID = -1;
         };
 

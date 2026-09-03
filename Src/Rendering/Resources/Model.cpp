@@ -13,6 +13,9 @@
 #include <glm/gtx/hash.hpp>
 
 #include <cassert>
+#include <cmath>
+#include <algorithm>
+#include <string>
 #include <unordered_map>
 
 #include <glm/gtx/string_cast.hpp>
@@ -141,7 +144,7 @@ std::vector<VkVertexInputAttributeDescription> Model::Vertex::getAttributeDescri
     attributeDescriptions.push_back({2,0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal)});
     attributeDescriptions.push_back({3,0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, uv)});
     attributeDescriptions.push_back({4,0, VK_FORMAT_R32_SINT, offsetof(Vertex, textureIndex)});
-    attributeDescriptions.push_back({5,0, VK_FORMAT_R32_SINT, offsetof(Vertex, specularIndex)});
+    attributeDescriptions.push_back({5,0, VK_FORMAT_R32_SINT, offsetof(Vertex, mrIndex)});
     attributeDescriptions.push_back({6,0, VK_FORMAT_R32_SINT, offsetof(Vertex, normalIndex)});
     attributeDescriptions.push_back({7,0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, tangent)});
 
@@ -199,8 +202,17 @@ void Model::Builder::loadObj(const std::string& filename, TextureManager& textur
         // Load diffuse texture
         m.diffuseTexID = resolveTexture(material.diffuse_texname, 1, VK_FORMAT_R8G8B8A8_SRGB);
 
-        // Load specular map
-        m.specularTexID = resolveTexture(material.specular_texname, 0, VK_FORMAT_R8G8B8A8_SRGB );
+        // OBJ is Phong: no metalness, and specular is a colour/intensity map with no
+        // metallic-roughness equivalent. Bake the Blinn-Phong shininess (Ns) into a
+        // 1x1 MR texture (roughness in G, metal 0) and drop map_Ks. Standard
+        // exponent -> roughness fit.
+        {
+            float rough = std::sqrt(2.0f / (std::max(material.shininess, 0.0f) + 2.0f));
+            rough = std::clamp(rough, 0.045f, 1.0f);
+            uint8_t g = static_cast<uint8_t>(rough * 255.0f + 0.5f);
+            m.mrTexID = static_cast<int>(textureManager.addRawTexture(
+                "mr_obj_g" + std::to_string(g), 255, g, 0));
+        }
 
         // Load normal map (bump_texname is used for normal in OBJ/MTL)
         m.normalTexID = resolveTexture(material.bump_texname, 2, VK_FORMAT_R8G8B8A8_UNORM);
@@ -213,9 +225,9 @@ void Model::Builder::loadObj(const std::string& filename, TextureManager& textur
     // (white/black/flat-normal) as resolveTexture, instead of the -1 sentinel that
     // MaterialObj's default constructor would otherwise give.
     MaterialObj defaultMaterial{};
-    defaultMaterial.diffuseTexID  = 1;
-    defaultMaterial.specularTexID = 0;
-    defaultMaterial.normalTexID   = 2;
+    defaultMaterial.diffuseTexID = 1;
+    defaultMaterial.mrTexID      = 0;   // MR neutral: matte dielectric
+    defaultMaterial.normalTexID  = 2;
 
     if(materials.empty())
         materials.emplace_back(defaultMaterial);
@@ -259,9 +271,9 @@ void Model::Builder::loadObj(const std::string& filename, TextureManager& textur
             : defaultMaterial;
         for (int k = 0; k < 3; k++) {
             Vertex& v = vertices[3*t + k];
-            v.textureIndex  = mat.diffuseTexID;
-            v.specularIndex = mat.specularTexID;
-            v.normalIndex   = mat.normalTexID;
+            v.textureIndex = mat.diffuseTexID;
+            v.mrIndex      = mat.mrTexID;
+            v.normalIndex  = mat.normalTexID;
         }
     }
 
@@ -441,14 +453,25 @@ void Model::Builder::loadGltf(const std::string& filepath, TextureManager& textu
         for (uint32_t p = 0; p < mesh.primitives_count; p++) {
             const tg3_primitive& prim = mesh.primitives[p];
             
-            int diffuseTex = 1, specularTex = 0, normalTex = 2;   // same reserved fallback slots OBJ uses
+            int diffuseTex = 1, mrTex = 0, normalTex = 2;   // reserved fallback slots
             if (prim.material >= 0) {
                 const tg3_material& mat = model->materials[prim.material];
-                diffuseTex = resolveGltfTexture(mat.pbr_metallic_roughness.base_color_texture.index, 1, VK_FORMAT_R8G8B8A8_SRGB);
+                const tg3_pbr_metallic_roughness& pmr = mat.pbr_metallic_roughness;
+
+                diffuseTex = resolveGltfTexture(pmr.base_color_texture.index, 1, VK_FORMAT_R8G8B8A8_SRGB);
                 normalTex  = resolveGltfTexture(mat.normal_texture.index, 2, VK_FORMAT_R8G8B8A8_UNORM);
-                // specularTex intentionally left at the default fallback — glTF's metallic-roughness model
-                // has no direct equivalent to your Phong-style specular map (see the note from way back
-                // when we first scoped this feature)
+
+                // glTF metallic-roughness: G = roughness, B = metalness. When there's
+                // no texture, bake the scalar factors into a 1x1 so the shader path
+                // stays uniform.
+                if (pmr.metallic_roughness_texture.index >= 0) {
+                    mrTex = resolveGltfTexture(pmr.metallic_roughness_texture.index, 0, VK_FORMAT_R8G8B8A8_UNORM);
+                } else {
+                    uint8_t g = static_cast<uint8_t>(std::clamp(pmr.roughness_factor, 0.0, 1.0) * 255.0 + 0.5);
+                    uint8_t b = static_cast<uint8_t>(std::clamp(pmr.metallic_factor,  0.0, 1.0) * 255.0 + 0.5);
+                    mrTex = static_cast<int>(textureManager.addRawTexture(
+                        "mr_gltf_g" + std::to_string(g) + "_b" + std::to_string(b), 255, g, b));
+                }
             }
 
             auto positions = readVec3FloatAccessor(model.get(), findAttribute(prim, "POSITION"));
@@ -463,9 +486,8 @@ void Model::Builder::loadGltf(const std::string& filepath, TextureManager& textu
                 v.normal   = normals.empty() ? glm::vec3(0.f) : glm::normalize(normalMatrix * normals[i]);
                 v.uv       = texcoords.empty() ? glm::vec2(0.f) : texcoords[i];
 
-                // texture indices: material resolution is step 5 — fall back to the same reserved slots as OBJ's default for now
                 v.textureIndex  = diffuseTex;
-                v.specularIndex = specularTex;
+                v.mrIndex       = mrTex;
                 v.normalIndex   = normalTex;
 
                 vertices.push_back(v);

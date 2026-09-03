@@ -7,7 +7,7 @@ layout(location = 1) in vec3 colour;
 layout(location = 2) in vec3 normal;
 layout(location = 3) in vec2 uv;
 layout(location = 4) in int textureIndex;
-layout(location = 5) in int specularIndex;
+layout(location = 5) in int mrIndex;
 layout(location = 6) in int normalIndex;
 layout(location = 7) in vec3 tangent;
 
@@ -18,7 +18,7 @@ layout(location = 1) out vec3 fragPosWorld;
 layout(location = 2) out vec3 fragNormalWorld;
 layout(location = 3) out vec2 fragUV;
 layout(location = 4) flat out int fragTexIndex;
-layout(location = 5) flat out int fragSpecIndex;
+layout(location = 5) flat out int fragMrIndex;
 layout(location = 6) flat out int fragNormalIndex;
 layout(location = 7) out vec3 fragTangentWorld;
 
@@ -39,7 +39,7 @@ void main() {
     fragUV = uv;
     fragTangentWorld = normalize(mat3(push.normalMatrix) * tangent);
     fragTexIndex = textureIndex;
-    fragSpecIndex = specularIndex;
+    fragMrIndex = mrIndex;
     fragNormalIndex = normalIndex;
     
 }
