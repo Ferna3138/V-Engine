@@ -2,6 +2,7 @@
 #include "Application/Editor/ImGui_Setup.hpp"
 #include "Application/Scene/Components.hpp"
 #include <imgui/imgui.h>
+#include <algorithm>
 
 void SceneHierarchyPanel::draw() {
     ImGui::Begin("Outliner");
@@ -89,7 +90,7 @@ void SceneHierarchyPanel::drawInspector(){
     if (auto* light = registry.try_get<PointLightComponent>(selectedEntity)) {
         ImGui::Separator();
         ImGui::ColorEdit3("Color", &light->colour.x);
-        ImGui::SliderFloat("Intensity", &light->colour.w, 0.0f, 50.0f);
+        ImGui::DragFloat("Intensity", &light->colour.w, 1.0f, 0.0f, 50.0f);
         ImGui::DragFloat("Radius", &light->radius, 0.01f, 0.0f, 5.0f);
     }
     
@@ -99,32 +100,37 @@ void SceneHierarchyPanel::drawInspector(){
         if (ImGui::Checkbox("Physically Based", &physical))
             camera->cameraModel = physical ? CameraModel::Physical : CameraModel::Pinhole;
 
+        constexpr ImGuiSliderFlags clamp = ImGuiSliderFlags_AlwaysClamp;
+
         if (camera->cameraModel == CameraModel::Physical) {
             ImGui::Text("FOV: %.1f deg", camera->cameraParams.fov);
-            ImGui::SliderFloat("Camera FPS", &camera->cameraParams.fps, 24.f, 1000.f);
-            ImGui::SliderFloat("Sensor Width", &camera->cameraParams.sensor_width, 0.f, 70.f);
-            ImGui::SliderFloat("Sensor Height", &camera->cameraParams.sensor_height, 0.f, 70.f);
-            ImGui::SliderFloat("Focal Length", &camera->cameraParams.focal_length, 8.f, 500.f);
-            ImGui::SliderFloat("Aperture", &camera->cameraParams.aperture, 1.f, 32.f);
-            ImGui::SliderFloat("Focus Distance", &camera->cameraParams.focus_distance, 0.1f, 150.f);
-            ImGui::SliderFloat("Shutter Angle", &camera->cameraParams.shutter_angle, 1.f, 360.f);
-            ImGui::SliderFloat("EV Comp", &camera->cameraParams.exposure, -5.f, 5.f);
-            ImGui::SliderInt("White Balance", &camera->cameraParams.white_balance, 2500, 10000);
+            ImGui::DragFloat("Camera FPS", &camera->cameraParams.fps, 0.1f, 24.f, 1000.f, "%.1f", clamp);
+            ImGui::DragFloat("Sensor Width", &camera->cameraParams.sensor_width, 0.1f, 1.f, 70.f, "%.1f", clamp);
+            ImGui::DragFloat("Sensor Height", &camera->cameraParams.sensor_height, 0.1f, 1.f, 70.f, "%.1f", clamp);
+            ImGui::DragFloat("Focal Length", &camera->cameraParams.focal_length, 0.1f, 8.f, 500.f, "%.1f", clamp);
+            ImGui::DragFloat("Aperture", &camera->cameraParams.aperture, 0.1f, 1.f, 32.f, "%.2f", clamp);
+            ImGui::DragFloat("Focus Distance", &camera->cameraParams.focus_distance, 0.1f, 0.1f, 150.f, "%.2f", clamp);
+            ImGui::DragFloat("Shutter Angle", &camera->cameraParams.shutter_angle, 0.1f, 1.f, 360.f, "%.1f", clamp);
+            ImGui::DragFloat("EV Comp", &camera->cameraParams.exposure, 0.1f, -5.f, 5.f, "%.2f", clamp);
+            ImGui::DragInt("White Balance", &camera->cameraParams.white_balance, 5, 2500, 10000, "%d", clamp);
             ImGui::Text("ISO: %d (auto)", camera->cameraParams.iso);
 
             ImGui::SeparatorText("Depth of Field");
             ImGui::Checkbox("Enable DoF", &camera->cameraParams.dof_enabled);
             if (camera->cameraParams.dof_enabled) {
-                ImGui::SliderInt  ("Aperture Blades", &camera->cameraParams.aperture_blades, 4, 9);
-                ImGui::SliderFloat("Blade Rotation",  &camera->cameraParams.blade_rotation, 0.f, 90.f);
-                ImGui::SliderInt  ("Bokeh Samples",   &camera->cameraParams.dof_samples, 8, 64);
-                ImGui::SliderFloat("Max Blur (px)",   &camera->cameraParams.max_coc, 2.f, 60.f);
+                ImGui::DragInt  ("Aperture Blades", &camera->cameraParams.aperture_blades, 1, 4, 9, "%d", clamp);
+                ImGui::DragFloat("Blade Rotation",  &camera->cameraParams.blade_rotation, 1.0f, 0.f, 90.f, "%.1f", clamp);
+                ImGui::DragInt  ("Bokeh Samples",   &camera->cameraParams.dof_samples, 1, 8, 64, "%d", clamp);
+                ImGui::DragFloat("Max Blur (px)",   &camera->cameraParams.max_coc, 1.0f, 2.f, 60.f, "%.1f", clamp);
             }
         } else {
-            ImGui::SliderFloat("FOV", &camera->cameraParams.fov, 10.f, 120.f);
+            ImGui::SliderFloat("FOV", &camera->cameraParams.fov, 10.f, 120.f, "%.1f", clamp);
         }
-        ImGui::SliderFloat("Near Plane", &camera->cameraParams.near_plane, 0.05f, 100.f);
-        ImGui::SliderFloat("Far Plane", &camera->cameraParams.far_plane, 0.05f, 1000.f);
+        ImGui::DragFloat("Near Plane", &camera->cameraParams.near_plane, 1.0f, 0.05f, 100.f, "%.2f", clamp);
+        ImGui::DragFloat("Far Plane", &camera->cameraParams.far_plane, 1.0f, 0.05f, 1000.f, "%.1f", clamp);
+
+        camera->cameraParams.near_plane = std::min(camera->cameraParams.near_plane, camera->cameraParams.far_plane - 0.01f);
+        camera->cameraParams.near_plane = std::max(camera->cameraParams.near_plane, 0.01f);
     }
     
     if (auto* model = registry.try_get<ModelComponent>(selectedEntity)){

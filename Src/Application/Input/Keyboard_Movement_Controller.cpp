@@ -1,5 +1,8 @@
 #include "Application/Input/Keyboard_Movement_Controller.hpp"
 
+#include <imgui/imgui.h>
+#include <backends/imgui_impl_glfw.h>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -109,7 +112,11 @@ void KeyboardMovementController::moveInPlaneXZ(GLFWwindow *window, float dt, ent
 }
 
 
-void KeyboardMovementController::scrollCallback(GLFWwindow* /*window*/, double /*xoffset*/, double yoffset) {
+void KeyboardMovementController::scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
+    // We replace ImGui's GLFW scroll callback, so forward to it first, then keep
+    // the wheel for camera zoom only when ImGui isn't using it (hovering a panel).
+    ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
+    if (ImGui::GetIO().WantCaptureMouse) return;
     scrollOffset += static_cast<float>(yoffset);
 }
 

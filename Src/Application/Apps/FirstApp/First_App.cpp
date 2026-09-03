@@ -223,6 +223,9 @@ void FirstApp::run() {
     entt::entity cameraEntity = resolveOrCreateCamera();
     CameraComponent* cameraComponent = &scene.getRegistry().get<CameraComponent>(cameraEntity);
     KeyboardMovementController cameraController{};
+    // Install our scroll handler once, after ImGui's GLFW callbacks. It forwards to
+    // ImGui and only zooms the camera when a panel isn't capturing the wheel.
+    cameraController.bindScrollCallback(window.getGLFWwindow());
 
     RenderScene renderScene;
 
@@ -251,7 +254,6 @@ void FirstApp::run() {
         // Camera settings
         cameraController.moveInPlaneXZ(window.getGLFWwindow(), frameTime, scene.getRegistry(), cameraEntity);
         cameraController.mouseMove(window.getGLFWwindow(), frameTime, scene.getRegistry(), cameraEntity);
-        cameraController.bindScrollCallback(window.getGLFWwindow());
 
         auto &camTransform = scene.getRegistry().get<TransformComponent>(cameraEntity);
         cameraComponent->camera.setView(camTransform.translation, camTransform.rotation);
