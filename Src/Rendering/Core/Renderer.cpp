@@ -27,7 +27,7 @@ void Renderer::recreateSwapChain() {
     extent = window.getExtent();
     glfwWaitEvents();
   }
-  vkDeviceWaitIdle(device.device());
+  device.waitIdle();
 
   if (swapChain == nullptr) {
     swapChain = std::make_unique<SwapChain>(device, extent);

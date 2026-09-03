@@ -61,7 +61,19 @@ class Device {
         VkQueue graphicsQueue() { return graphicsQueue_; }
         VkQueue presentQueue() { return presentQueue_; }
 
-        std::mutex graphicsQueueMutex;
+        // Guards ALL host access to the VkQueues (submit / present / wait-idle).
+        // The async loader services uploads on its own thread, so every queue
+        // operation on any thread - including vkDeviceWaitIdle, which the spec
+        // requires to be externally synchronised against every queue - must hold
+        // this. On GPUs without a dedicated transfer family the transfer and
+        // graphics queues are the same handle, so one mutex covers both.
+        std::mutex queueMutex;
+
+        // vkDeviceWaitIdle, serialised against queue submissions on other threads.
+        void waitIdle() {
+            std::lock_guard<std::mutex> lock(queueMutex);
+            vkDeviceWaitIdle(device_);
+        }
 
         void createPipelineCache();
         void savePipelineCache();

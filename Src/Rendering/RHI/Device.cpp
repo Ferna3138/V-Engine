@@ -53,7 +53,7 @@ void Device::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
     submitInfo.pCommandBuffers = &commandBuffer;
 
     {
-        std::lock_guard<std::mutex> lock(graphicsQueueMutex);
+        std::lock_guard<std::mutex> lock(queueMutex);
         vkQueueSubmit(graphicsQueue_, 1, &submitInfo, VK_NULL_HANDLE);
         vkQueueWaitIdle(graphicsQueue_);
     }

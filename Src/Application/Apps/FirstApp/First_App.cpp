@@ -185,7 +185,7 @@ void FirstApp::run() {
 
         if (sceneReloadRequested) {
             sceneReloadRequested = false;
-            vkDeviceWaitIdle(device.device());
+            device.waitIdle();
             scene.getRegistry().clear();
             loadGameObjects();
             cameraEntity = resolveOrCreateCamera();
@@ -299,7 +299,14 @@ void FirstApp::run() {
 
             VkCommandBuffer imguiCB = renderer.getSecondaryCommandBuffer(2);
             vkBeginCommandBuffer(imguiCB, &secBeginInfo);
-            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), imguiCB);
+            {
+                // ImGui_ImplVulkan_RenderDrawData uploads dirty font/texture
+                // atlases with its own vkQueueSubmit + vkQueueWaitIdle on the
+                // graphics queue, so it must be serialised against the async
+                // loader thread's queue submissions.
+                std::lock_guard<std::mutex> lock(device.queueMutex);
+                ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), imguiCB);
+            }
             vkEndCommandBuffer(imguiCB);
             vkCmdExecuteCommands(commandBuffer, 1, &imguiCB);
 
@@ -308,7 +315,7 @@ void FirstApp::run() {
         }
     }
 
-    vkDeviceWaitIdle(device.device());
+    device.waitIdle();
     ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
 
 }

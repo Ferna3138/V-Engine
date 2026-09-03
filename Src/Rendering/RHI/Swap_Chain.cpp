@@ -123,7 +123,7 @@ VkResult SwapChain::submitCommandBuffers(const VkCommandBuffer *buffers, uint32_
 
     VkResult result;
     {
-        std::lock_guard<std::mutex> lock(device.graphicsQueueMutex);
+        std::lock_guard<std::mutex> lock(device.queueMutex);
         if (vkQueueSubmit(device.graphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]) !=
             VK_SUCCESS) {
             throw std::runtime_error("failed to submit draw command buffer!");

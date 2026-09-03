@@ -176,17 +176,15 @@ void AsyncLoader::submitTransfer(const UploadRequest& request) {
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = &transferCompleteSemaphore;
 
-    /*
-    On GPUs without a dedicated transfer family the transfer queue aliases the
-    graphics queue, so this submit (on the I/O thread) races the main thread's
-    render submits. vkQueueSubmit must be externally synchronised per queue:
-    take the graphics queue mutex whenever the two handles are the same.
-    */
-    std::unique_lock<std::mutex> queueLock(device.graphicsQueueMutex, std::defer_lock);
-    if (device.transferQueue() == device.graphicsQueue()) {
-        queueLock.lock();
+    // This submit runs on the I/O thread; the main thread submits render work,
+    // presents, and calls vkDeviceWaitIdle. vkQueueSubmit must be externally
+    // synchronised per queue, and on GPUs without a dedicated transfer family
+    // the transfer queue is the same handle as the graphics queue - so always
+    // take the shared queue mutex.
+    {
+        std::lock_guard<std::mutex> lock(device.queueMutex);
+        vkQueueSubmit(device.transferQueue(), 1, &submitInfo, transferFence);
     }
-    vkQueueSubmit(device.transferQueue(), 1, &submitInfo, transferFence);
 }
 
 void AsyncLoader::submitAcquire(VkImage image) {
@@ -225,7 +223,7 @@ void AsyncLoader::submitAcquire(VkImage image) {
     {
         // vkQueueSubmit must be externally synchronised per queue — the main
         // thread submits render work to the same graphics queue.
-        std::lock_guard<std::mutex> lock(device.graphicsQueueMutex);
+        std::lock_guard<std::mutex> lock(device.queueMutex);
         vkQueueSubmit(device.graphicsQueue(), 1, &submitInfo, finalizeFence);
     }
     // No CPU wait here: completion is picked up by update()'s finalizeFence poll,
