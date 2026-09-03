@@ -16,15 +16,16 @@ struct CamParameters{
     float sensor_height = 24.f;
     float focal_length = 24.f;
     float fov = 50.f;
-    float near_plane = 0.f;
-    float far_plane = 0.f;
+    float near_plane = 0.1f;
+    float far_plane = 100.f;
     float aspect_ratio = 0.f;
-    float aperture = 4.f;
+    float aperture = 2.f;
     float focus_distance = 2.f;
-    float shutter_speed = 0.f;
-    float shutter_angle = 0.f;
+    float shutter_angle = 180.f;
     float exposure = 0.f;
-    int white_balance = 6500.f;
+    int white_balance = 6500;
+    int iso = 100;
+    float fps = 60.f;
 };
 
 class Camera{

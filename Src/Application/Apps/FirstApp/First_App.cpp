@@ -2,11 +2,15 @@
 
 #include "Rendering/Core/Camera.hpp"
 #include "Application/Input/Keyboard_Movement_Controller.hpp"
+
 #include "Rendering/Passes/Simple_Render_System.hpp"
 #include "Rendering/Passes/Point_Light_System.hpp"
 #include "Rendering/Passes/Depth_Prepass_System.hpp"
+#include "Rendering/Passes/Full_Screen_System.hpp"
+
 #include "Rendering/RHI/Buffer.hpp"
 #include "Rendering/Resources/Texture.hpp"
+
 #include "Foundation/Platform/AssetPath.hpp"
 #include "Application/Scene/Scene_Serializer.hpp"
 
@@ -25,7 +29,9 @@
 
 #include <glm/gtc/constants.hpp>
 
-
+struct DofParams  { glm::vec4 dof;      glm::vec4 extra; };  // 32B — dof_downsample
+struct BlurParams { glm::vec4 params; };                     // 16B — dof_blur
+struct PostParams { glm::vec4 exposure; };                   // 16B — tonemap
 
 FirstApp::FirstApp() {
     jobSystem.initialize();
@@ -39,9 +45,9 @@ FirstApp::FirstApp() {
 
 
     globalPool = DescriptorPool::Builder(device)
-        .setMaxSets(SwapChain::MAX_FRAMES_IN_FLIGHT)
-        .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, SwapChain::MAX_FRAMES_IN_FLIGHT)
-        .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, SwapChain::MAX_FRAMES_IN_FLIGHT)
+        .setMaxSets(SwapChain::MAX_FRAMES_IN_FLIGHT + 6)
+        .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, SwapChain::MAX_FRAMES_IN_FLIGHT + 6)
+        .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, SwapChain::MAX_FRAMES_IN_FLIGHT + 6)
         .build();
 
     loadGameObjects();
@@ -51,7 +57,7 @@ FirstApp::FirstApp() {
     frameGraph.createResources(device);
     frameGraph.createRenderPasses(device);
     frameGraph.setNodeUsesSecondaryCommandBuffers("forward", true);
-    frameGraph.setPresentOutput("scene_colour");
+    frameGraph.setPresentOutput("ldr_colour");
 }
 
 FirstApp::~FirstApp() {
@@ -91,6 +97,10 @@ void FirstApp::run() {
             .build(globalDescriptorSets[i]);
     }
 
+    // Filled fresh each frame (see the render loop), read by the post callback.
+    DofParams  dofP{};
+    BlurParams blurP{};
+    PostParams postP{};
 
     // Geometry is rendered by the frame graph (depth_prepass -> forward), so the
     // render systems build their pipelines against the graph's render passes.
@@ -103,9 +113,40 @@ void FirstApp::run() {
         frameGraph.getNodeRenderPass("forward"),
         globalSetLayout->getDescriptorSetLayout(),
         textureManager.getLayout()};
-    PointLightSystem pointLightSystem{device,
+    PointLightSystem pointLightSystem{
+        device,
         frameGraph.getNodeRenderPass("forward"),
         globalSetLayout->getDescriptorSetLayout()};
+    
+    // Full Screen Passes
+    FullscreenPass dofDownsample{
+        device,
+        frameGraph.getNodeRenderPass("dof_downsample"),
+        *globalPool,
+        "Src/Rendering/Shaders/dof_downsample.frag.spv",
+        { frameGraph.getResourceImageView("scene_colour"),   // -> binding 0  sceneColour
+        frameGraph.getResourceImageView("depth") },        // -> binding 1  sceneDepth
+        sizeof(DofParams)
+    };
+
+    FullscreenPass dofBlur{
+        device, 
+        frameGraph.getNodeRenderPass("dof_blur"), 
+        *globalPool,
+        "Src/Rendering/Shaders/dof_blur.frag.spv", 
+        {frameGraph.getResourceImageView("dof_far")},
+        sizeof(BlurParams)
+    };
+    FullscreenPass post{
+        device, 
+        frameGraph.getNodeRenderPass("post"), 
+        *globalPool,
+        "Src/Rendering/Shaders/tonemap.frag.spv",
+        {frameGraph.getResourceImageView("scene_colour"), frameGraph.getResourceImageView("dof_far_b")},
+        sizeof(PostParams)
+    };
+    
+
 
     // The frame graph invokes these inside each pass's render pass, on the primary
     // command buffer. activeFrame is repointed at the current FrameInfo each frame.
@@ -164,6 +205,15 @@ void FirstApp::run() {
         vkCmdExecuteCommands(cb, 2, secondaries);
     });
 
+    frameGraph.registerRenderPass("dof_downsample", [&](VkCommandBuffer cb){dofDownsample.render(cb, &dofP, sizeof(dofP)); });
+    frameGraph.registerRenderPass("dof_blur",       [&](VkCommandBuffer cb){ dofBlur.render(cb, &blurP, sizeof(blurP)); });
+    frameGraph.registerRenderPass("post",           [&](VkCommandBuffer cb){ post.render(cb, &postP, sizeof(postP)); });
+
+
+
+
+    
+
     setUpImgui();
 
 
@@ -193,10 +243,12 @@ void FirstApp::run() {
             cameraController = KeyboardMovementController{};
         }
 
+        // Time & FPS
         auto newTime = std::chrono::high_resolution_clock::now();
         float frameTime = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currentTime).count();
         currentTime = newTime;
 
+        // Camera settings
         cameraController.moveInPlaneXZ(window.getGLFWwindow(), frameTime, scene.getRegistry(), cameraEntity);
         cameraController.mouseMove(window.getGLFWwindow(), frameTime, scene.getRegistry(), cameraEntity);
         cameraController.bindScrollCallback(window.getGLFWwindow());
@@ -206,8 +258,29 @@ void FirstApp::run() {
 
         float aspect = renderer.getAspectRatio();
 
-        cameraComponent->camera.setPerspectiveProjection(
-            glm::radians(cameraComponent->cameraParams.fov), aspect, 0.1f, 100.f);
+        if(cameraComponent->cameraModel == CameraModel::Physical){
+            float fovy = 2.f * atan(cameraComponent->cameraParams.sensor_height / (2.f * cameraComponent->cameraParams.focal_length));
+            cameraComponent->cameraParams.fov = glm::degrees(fovy);
+            cameraComponent->camera.setPerspectiveProjection(fovy, aspect, cameraComponent->cameraParams.near_plane, cameraComponent->cameraParams.far_plane);
+        }else{
+            cameraComponent->camera.setPerspectiveProjection(
+            glm::radians(cameraComponent->cameraParams.fov), aspect, cameraComponent->cameraParams.near_plane, cameraComponent->cameraParams.far_plane);
+        }
+
+        CameraExposure ex = computeExposure(cameraComponent->cameraParams);
+        cameraComponent->cameraParams.iso = static_cast<int>(ex.autoIso);
+
+        {
+            const auto& p = cameraComponent->cameraParams;
+            bool physical = cameraComponent->cameraModel == CameraModel::Physical;
+            dofP.dof     = glm::vec4(p.focal_length, p.aperture, p.focus_distance, p.sensor_height);
+            dofP.extra   = glm::vec4(p.near_plane, physical ? 30.0f : 0.0f, p.far_plane, 0.0f); // .y = maxCoC, 0 = DoF off
+            blurP.params = glm::vec4(6.0f, 0.0f, 32.0f, 0.0f);   // blades, rot, sampleCount, unused
+            postP.exposure = glm::vec4(ex.whiteBalanceGain, ex.scale);
+
+        }
+
+        //printf("exposure=%.4f  wb=(%.2f, %.2f, %.2f)\n", ex.scale, ex.whiteBalanceGain.x, ex.whiteBalanceGain.y, ex.whiteBalanceGain.z);
 
         scene.buildRenderScene(renderScene);
 
@@ -231,6 +304,7 @@ void FirstApp::run() {
             ubo.inverseView = cameraComponent->camera.getInverseView();
             ubo.inverseProj = cameraComponent->camera.getInverseProj();
             
+
             pointLightSystem.update(frameInfo, ubo);
             uboBuffers[frameIndex]->writeToBuffer(&ubo);
             uboBuffers[frameIndex]->flush();
@@ -300,7 +374,7 @@ void FirstApp::run() {
             VkCommandBuffer imguiCB = renderer.getSecondaryCommandBuffer(2);
             vkBeginCommandBuffer(imguiCB, &secBeginInfo);
             {
-                // ImGui_ImplVulkan_RenderDrawData uploads dirty font/texture
+                //  uploads dirty font/texture
                 // atlases with its own vkQueueSubmit + vkQueueWaitIdle on the
                 // graphics queue, so it must be serialised against the async
                 // loader thread's queue submissions.

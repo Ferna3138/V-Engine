@@ -100,18 +100,22 @@ void SceneHierarchyPanel::drawInspector(){
             camera->cameraModel = physical ? CameraModel::Physical : CameraModel::Pinhole;
 
         if (camera->cameraModel == CameraModel::Physical) {
+            ImGui::Text("FOV: %.1f deg", camera->cameraParams.fov);
+            ImGui::SliderFloat("Camera FPS", &camera->cameraParams.fps, 24.f, 1000.f);
             ImGui::SliderFloat("Sensor Width", &camera->cameraParams.sensor_width, 0.f, 70.f);
             ImGui::SliderFloat("Sensor Height", &camera->cameraParams.sensor_height, 0.f, 70.f);
-            ImGui::SliderFloat("Focal Length", &camera->cameraParams.focal_length, 0.f, 500.f);
-            ImGui::SliderFloat("Aperture", &camera->cameraParams.aperture, 0.f, 32.f);
-            ImGui::SliderFloat("Focus Distance", &camera->cameraParams.focus_distance, 0.f, 150.f);
-            ImGui::SliderFloat("Shutter Speed", &camera->cameraParams.shutter_speed, 0.f, 360.f);
-            ImGui::SliderFloat("Exposure", &camera->cameraParams.exposure, 0.f, 10.f);
-            ImGui::SliderInt("White Balance", &camera->cameraParams.white_balance, 1000, 10000);
+            ImGui::SliderFloat("Focal Length", &camera->cameraParams.focal_length, 8.f, 500.f);
+            ImGui::SliderFloat("Aperture", &camera->cameraParams.aperture, 1.f, 32.f);
+            ImGui::SliderFloat("Focus Distance", &camera->cameraParams.focus_distance, 0.1f, 150.f);
+            ImGui::SliderFloat("Shutter Angle", &camera->cameraParams.shutter_angle, 1.f, 360.f);
+            ImGui::SliderFloat("EV Comp", &camera->cameraParams.exposure, -5.f, 5.f);
+            ImGui::SliderInt("White Balance", &camera->cameraParams.white_balance, 2500, 10000);
+            ImGui::Text("ISO: %d (auto)", camera->cameraParams.iso);
         } else {
             ImGui::SliderFloat("FOV", &camera->cameraParams.fov, 10.f, 120.f);
         }
-
+        ImGui::SliderFloat("Near Plane", &camera->cameraParams.near_plane, 0.05f, 100.f);
+        ImGui::SliderFloat("Far Plane", &camera->cameraParams.far_plane, 0.05f, 1000.f);
     }
     
     if (auto* model = registry.try_get<ModelComponent>(selectedEntity)){

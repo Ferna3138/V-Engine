@@ -80,6 +80,6 @@ void main() {
         diffuseLight  += kD * radiance * NdotL;
         specularLight += specular * radiance * NdotL;
     }
-
+    
     outColour = vec4(diffuseLight * albedo + specularLight, 1.0);
 }

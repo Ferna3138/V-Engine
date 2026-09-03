@@ -60,7 +60,7 @@ void readCameraParams(const json& j, CamParameters& p) {
     num("fov", p.fov);
     num("aperture", p.aperture);
     num("focus_distance", p.focus_distance);
-    num("shutter_speed", p.shutter_speed);
+    num("shutter_angle", p.shutter_angle);
     num("exposure", p.exposure);
     if (j.contains("white_balance")) p.white_balance = j.at("white_balance").get<int>();
 }
@@ -73,7 +73,7 @@ json writeCameraParams(const CamParameters& p) {
         {"fov", p.fov},
         {"aperture", p.aperture},
         {"focus_distance", p.focus_distance},
-        {"shutter_speed", p.shutter_speed},
+        {"shutter_angle", p.shutter_angle},
         {"exposure", p.exposure},
         {"white_balance", p.white_balance},
     };

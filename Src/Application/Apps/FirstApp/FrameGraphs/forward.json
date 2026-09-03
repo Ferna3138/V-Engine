@@ -11,7 +11,37 @@
             { "type": "attachment", "name": "depth" }
         ],
         "outputs": [
-            { "type": "attachment", "name": "scene_colour", "format": "VK_FORMAT_B8G8R8A8_SRGB", "resolution": [1200, 800], "op": "VK_ATTACHMENT_LOAD_OP_CLEAR" }
+            { "type": "attachment", "name": "scene_colour", "format": "VK_FORMAT_R16G16B16A16_SFLOAT", "resolution": [1200, 800], "op": "VK_ATTACHMENT_LOAD_OP_CLEAR" }
+        ]
+    },
+
+    {
+        "name": "dof_downsample",
+        "inputs":  [
+            { "type": "texture", "name": "scene_colour" },
+            { "type": "texture", "name": "depth" }
+        ],
+        "outputs": [
+            { "type": "attachment", "name": "dof_far", "format": "VK_FORMAT_R16G16B16A16_SFLOAT", "resolution": [600, 400], "op": "VK_ATTACHMENT_LOAD_OP_CLEAR" }
+        ]
+    },
+    {
+        "name": "dof_blur",
+        "inputs":  [
+            { "type": "texture", "name": "dof_far" }
+        ],
+        "outputs": [
+            { "type": "attachment", "name": "dof_far_b", "format": "VK_FORMAT_R16G16B16A16_SFLOAT", "resolution": [600, 400], "op": "VK_ATTACHMENT_LOAD_OP_CLEAR" }
+        ]
+    },
+    {
+        "name": "post",
+        "inputs":  [
+            { "type": "texture", "name": "scene_colour" },
+            { "type": "texture", "name": "dof_far_b" }
+        ],
+        "outputs": [
+            { "type": "attachment", "name": "ldr_colour", "format": "VK_FORMAT_B8G8R8A8_SRGB", "resolution": [1200, 800], "op": "VK_ATTACHMENT_LOAD_OP_CLEAR" }
         ]
     }
 ]

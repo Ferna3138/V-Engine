@@ -6,6 +6,7 @@
 #include "Rendering/RHI/Descriptors.hpp"
 #include "Rendering/Resources/TextureManager.hpp"
 #include "Rendering/FrameGraph/Frame_Graph.hpp"
+#include "Rendering/Core/Exposure.hpp"
 #include "Application/Editor/ImGui_Setup.hpp"
 
 #include "Application/Scene/Scene.hpp"

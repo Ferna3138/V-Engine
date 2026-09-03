@@ -563,6 +563,13 @@ void FrameGraph::execute(VkCommandBuffer commandBuffer) {
     }
 }
 
+VkImageView FrameGraph::getResourceImageView(const std::string& name) const {
+    auto it = outputNameToResource.find(name);
+    if (it == outputNameToResource.end())
+        throw std::runtime_error("Frame graph has no produced resource named '" + name + "'");
+    return resources[it->second].imageView;
+}
+
 void FrameGraph::setNodeUsesSecondaryCommandBuffers(const std::string& nodeName, bool value) {
     uint32_t idx = findNode(nodeName);
     if (idx == UINT32_MAX) throw std::runtime_error("Frame graph has no node named '" + nodeName + "'");

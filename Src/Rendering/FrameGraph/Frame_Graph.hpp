@@ -97,6 +97,8 @@ class FrameGraph {
         void setNodeUsesSecondaryCommandBuffers(const std::string& nodeName, bool value);
         VkExtent2D getNodeExtent(const std::string& nodeName);
 
+        VkImageView getResourceImageView(const std::string& name) const;
+
         ~FrameGraph();
 
     private:

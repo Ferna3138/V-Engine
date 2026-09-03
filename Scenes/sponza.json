@@ -3,7 +3,7 @@
   "camera": {
     "model": "Pinhole",
     "transform": { "translation": [0.0, 1.5, 0.5], "rotationEuler": [0.0, 0.0, 0.0] },
-    "params": { "fov": 50.0 }
+    "params": { "fov": 50.0, "exposure": -1.0 }
   },
   "entities": [
     {
