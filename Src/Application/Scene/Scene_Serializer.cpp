@@ -62,6 +62,11 @@ void readCameraParams(const json& j, CamParameters& p) {
     num("focus_distance", p.focus_distance);
     num("shutter_angle", p.shutter_angle);
     num("exposure", p.exposure);
+    num("blade_rotation", p.blade_rotation);
+    num("max_coc", p.max_coc);
+    if (j.contains("dof_enabled")) p.dof_enabled = j.at("dof_enabled").get<bool>();
+    if (j.contains("aperture_blades")) p.aperture_blades = j.at("aperture_blades").get<int>();
+    if (j.contains("dof_samples")) p.dof_samples = j.at("dof_samples").get<int>();
     if (j.contains("white_balance")) p.white_balance = j.at("white_balance").get<int>();
 }
 
@@ -75,7 +80,12 @@ json writeCameraParams(const CamParameters& p) {
         {"focus_distance", p.focus_distance},
         {"shutter_angle", p.shutter_angle},
         {"exposure", p.exposure},
-        {"white_balance", p.white_balance},
+        {"dof_enabled", p.dof_enabled},
+        {"aperture_blades", p.aperture_blades},
+        {"blade_rotation", p.blade_rotation},
+        {"dof_samples", p.dof_samples},
+        {"max_coc", p.max_coc},
+        {"white_balance", p.white_balance}
     };
 }
 

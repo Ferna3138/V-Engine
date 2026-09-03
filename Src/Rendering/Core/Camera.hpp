@@ -26,6 +26,13 @@ struct CamParameters{
     int white_balance = 6500;
     int iso = 100;
     float fps = 60.f;
+    
+    // Depth of field
+    bool  dof_enabled     = true;
+    int   aperture_blades = 6;
+    float blade_rotation  = 0.f;    // degrees
+    int   dof_samples     = 32;
+    float max_coc         = 30.f;   // blur ceiling, full-res px
 };
 
 class Camera{

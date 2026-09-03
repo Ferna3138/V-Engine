@@ -273,11 +273,13 @@ void FirstApp::run() {
         {
             const auto& p = cameraComponent->cameraParams;
             bool physical = cameraComponent->cameraModel == CameraModel::Physical;
-            dofP.dof     = glm::vec4(p.focal_length, p.aperture, p.focus_distance, p.sensor_height);
-            dofP.extra   = glm::vec4(p.near_plane, physical ? 30.0f : 0.0f, p.far_plane, 0.0f); // .y = maxCoC, 0 = DoF off
-            blurP.params = glm::vec4(6.0f, 0.0f, 32.0f, 0.0f);   // blades, rot, sampleCount, unused
-            postP.exposure = glm::vec4(ex.whiteBalanceGain, ex.scale);
+            bool dofOn    = physical && p.dof_enabled;
 
+            dofP.dof     = glm::vec4(p.focal_length, p.aperture, p.focus_distance, p.sensor_height);
+            dofP.extra   = glm::vec4(p.near_plane, dofOn ? p.max_coc : 0.f, p.far_plane, 0.f);
+            blurP.params = glm::vec4(float(p.aperture_blades), glm::radians(p.blade_rotation),
+                                    float(p.dof_samples), 0.f);
+            postP.exposure = glm::vec4(ex.whiteBalanceGain, ex.scale);
         }
 
         //printf("exposure=%.4f  wb=(%.2f, %.2f, %.2f)\n", ex.scale, ex.whiteBalanceGain.x, ex.whiteBalanceGain.y, ex.whiteBalanceGain.z);

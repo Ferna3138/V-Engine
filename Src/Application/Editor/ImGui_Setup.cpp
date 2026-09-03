@@ -111,6 +111,15 @@ void SceneHierarchyPanel::drawInspector(){
             ImGui::SliderFloat("EV Comp", &camera->cameraParams.exposure, -5.f, 5.f);
             ImGui::SliderInt("White Balance", &camera->cameraParams.white_balance, 2500, 10000);
             ImGui::Text("ISO: %d (auto)", camera->cameraParams.iso);
+
+            ImGui::SeparatorText("Depth of Field");
+            ImGui::Checkbox("Enable DoF", &camera->cameraParams.dof_enabled);
+            if (camera->cameraParams.dof_enabled) {
+                ImGui::SliderInt  ("Aperture Blades", &camera->cameraParams.aperture_blades, 4, 9);
+                ImGui::SliderFloat("Blade Rotation",  &camera->cameraParams.blade_rotation, 0.f, 90.f);
+                ImGui::SliderInt  ("Bokeh Samples",   &camera->cameraParams.dof_samples, 8, 64);
+                ImGui::SliderFloat("Max Blur (px)",   &camera->cameraParams.max_coc, 2.f, 60.f);
+            }
         } else {
             ImGui::SliderFloat("FOV", &camera->cameraParams.fov, 10.f, 120.f);
         }
