@@ -175,6 +175,17 @@ void AsyncLoader::submitTransfer(const UploadRequest& request) {
     submitInfo.pCommandBuffers = &transferCommandBuffer;
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = &transferCompleteSemaphore;
+
+    /*
+    On GPUs without a dedicated transfer family the transfer queue aliases the
+    graphics queue, so this submit (on the I/O thread) races the main thread's
+    render submits. vkQueueSubmit must be externally synchronised per queue:
+    take the graphics queue mutex whenever the two handles are the same.
+    */
+    std::unique_lock<std::mutex> queueLock(device.graphicsQueueMutex, std::defer_lock);
+    if (device.transferQueue() == device.graphicsQueue()) {
+        queueLock.lock();
+    }
     vkQueueSubmit(device.transferQueue(), 1, &submitInfo, transferFence);
 }
 

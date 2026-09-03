@@ -103,7 +103,9 @@ void FirstApp::run() {
         frameGraph.getNodeRenderPass("forward"),
         globalSetLayout->getDescriptorSetLayout(),
         textureManager.getLayout()};
-    PointLightSystem pointLightSystem{device, frameGraph.getNodeRenderPass("forward"), globalSetLayout->getDescriptorSetLayout()};
+    PointLightSystem pointLightSystem{device,
+        frameGraph.getNodeRenderPass("forward"),
+        globalSetLayout->getDescriptorSetLayout()};
 
     // The frame graph invokes these inside each pass's render pass, on the primary
     // command buffer. activeFrame is repointed at the current FrameInfo each frame.

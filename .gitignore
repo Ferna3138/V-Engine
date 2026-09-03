@@ -407,7 +407,8 @@ build/
 Src/Dependencies/
 
 
-Models/GLTF
+Models/GLTF/*
+!Models/GLTF/Sponza
 
 pipeline_cache.bin
 
