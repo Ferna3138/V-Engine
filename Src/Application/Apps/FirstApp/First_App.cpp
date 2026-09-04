@@ -7,6 +7,7 @@
 #include "Rendering/Passes/Point_Light_System.hpp"
 #include "Rendering/Passes/Depth_Prepass_System.hpp"
 #include "Rendering/Passes/Full_Screen_System.hpp"
+#include "Rendering/Passes/Post_Fx_Params.hpp"
 
 #include "Rendering/RHI/Buffer.hpp"
 #include "Rendering/Resources/Texture.hpp"
@@ -28,11 +29,6 @@
 #include <numeric>
 
 #include <glm/gtc/constants.hpp>
-
-struct DofParams  { glm::vec4 dof;      glm::vec4 extra; };  // 32B — dof_downsample
-struct BlurParams { glm::vec4 params; };                     // 16B — dof_blur
-struct PostParams { glm::vec4 exposure; };                   // 16B — tonemap
-struct MotionBlurParams { glm::mat4 reprojection{1.f}; glm::vec4 params{0.f}; };  // 80 B
 
 
 FirstApp::FirstApp() {
@@ -101,9 +97,9 @@ void FirstApp::run() {
 
     // Camera DoF
     // Filled fresh each frame
-    DofParams  dofP{};
-    BlurParams blurP{};
-    PostParams postP{};
+    DofDownsampleParams  dofP{};
+    DofBlurParams blurP{};
+    TonemapParams postP{};
     // Motion Blur
     MotionBlurParams mbP{};
     glm::mat4 prevViewProj{1.f};
@@ -140,7 +136,7 @@ void FirstApp::run() {
         "Src/Rendering/Shaders/dof_downsample.frag.spv",
         { frameGraph.getResourceImageView("scene_mb"),   // -> binding 0  sceneColour
         frameGraph.getResourceImageView("depth") },        // -> binding 1  sceneDepth
-        sizeof(DofParams)
+        sizeof(DofDownsampleParams)
     };
 
     FullscreenPass dofBlur{
@@ -149,7 +145,7 @@ void FirstApp::run() {
         *globalPool,
         "Src/Rendering/Shaders/dof_blur.frag.spv", 
         {frameGraph.getResourceImageView("dof_far")},
-        sizeof(BlurParams)
+        sizeof(DofBlurParams)
     };
     FullscreenPass post{
         device, 
@@ -157,7 +153,7 @@ void FirstApp::run() {
         *globalPool,
         "Src/Rendering/Shaders/tonemap.frag.spv",
         {frameGraph.getResourceImageView("scene_mb"), frameGraph.getResourceImageView("dof_far_b")},
-        sizeof(PostParams)
+        sizeof(TonemapParams)
     };
     
 
@@ -278,9 +274,20 @@ void FirstApp::run() {
         float aspect = renderer.getAspectRatio();
 
         if(cameraComponent->cameraModel == CameraModel::Physical){
-            float fovy = 2.f * atan(cameraComponent->cameraParams.sensor_height / (2.f * cameraComponent->cameraParams.focal_length));
+            const auto& cp = cameraComponent->cameraParams;
+            // "Auto fit" (like Blender): if the render target is wider than the
+            // sensor, the sensor width is the limiting dimension -> derive the
+            // horizontal FOV from sensor_width, then the vertical from aspect.
+            // Otherwise the sensor height limits, as before.
+            float fovy;
+            if (aspect >= cp.sensor_width / cp.sensor_height) {
+                float fovx = 2.f * atan(cp.sensor_width / (2.f * cp.focal_length));
+                fovy = 2.f * atan(tan(fovx * 0.5f) / aspect);
+            } else {
+                fovy = 2.f * atan(cp.sensor_height / (2.f * cp.focal_length));
+            }
             cameraComponent->cameraParams.fov = glm::degrees(fovy);
-            cameraComponent->camera.setPerspectiveProjection(fovy, aspect, cameraComponent->cameraParams.near_plane, cameraComponent->cameraParams.far_plane);
+            cameraComponent->camera.setPerspectiveProjection(fovy, aspect, cp.near_plane, cp.far_plane);
         }else{
             cameraComponent->camera.setPerspectiveProjection(
             glm::radians(cameraComponent->cameraParams.fov), aspect, cameraComponent->cameraParams.near_plane, cameraComponent->cameraParams.far_plane);

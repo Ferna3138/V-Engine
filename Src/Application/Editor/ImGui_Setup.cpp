@@ -3,6 +3,20 @@
 #include "Application/Scene/Components.hpp"
 #include <imgui/imgui.h>
 #include <algorithm>
+#include <cmath>
+
+namespace {
+struct SensorPreset { const char* name; float width; float height; };  // mm
+constexpr SensorPreset kSensorPresets[] = {
+    {"IMAX 65mm",          70.41f, 52.63f},
+    {"Medium Format",      43.80f, 32.90f},
+    {"Full Frame",         36.00f, 24.00f},
+    {"Super 35",           24.89f, 18.66f},
+    {"APS-C",              23.60f, 15.70f},
+    {"Micro Four Thirds",  17.30f, 13.00f},
+};
+}
+
 
 void SceneHierarchyPanel::draw() {
     ImGui::Begin("Outliner");
@@ -108,8 +122,25 @@ void SceneHierarchyPanel::drawInspector(){
         if (camera->cameraModel == CameraModel::Physical) {
             ImGui::Text("FOV: %.1f deg", camera->cameraParams.fov);
             ImGui::DragFloat("Camera FPS", &camera->cameraParams.fps, 0.1f, 24.f, 1000.f, "%.1f", clamp);
-            ImGui::DragFloat("Sensor Width", &camera->cameraParams.sensor_width, 0.1f, 1.f, 70.f, "%.1f", clamp);
-            ImGui::DragFloat("Sensor Height", &camera->cameraParams.sensor_height, 0.1f, 1.f, 70.f, "%.1f", clamp);
+
+            {
+                auto& cp = camera->cameraParams;
+                int cur = -1;
+                for (int i = 0; i < IM_ARRAYSIZE(kSensorPresets); ++i)
+                    if (std::fabs(cp.sensor_width - kSensorPresets[i].width) < 0.02f &&
+                        std::fabs(cp.sensor_height - kSensorPresets[i].height) < 0.02f) { cur = i; break; }
+                const char* preview = cur >= 0 ? kSensorPresets[cur].name : "Custom";
+                if (ImGui::BeginCombo("Sensor Preset", preview)) {
+                    for (int i = 0; i < IM_ARRAYSIZE(kSensorPresets); ++i)
+                        if (ImGui::Selectable(kSensorPresets[i].name, i == cur)) {
+                            cp.sensor_width  = kSensorPresets[i].width;
+                            cp.sensor_height = kSensorPresets[i].height;
+                        }
+                    ImGui::EndCombo();
+                }
+            }
+            ImGui::DragFloat("Sensor Width", &camera->cameraParams.sensor_width, 0.1f, 1.f, 80.f, "%.2f", clamp);
+            ImGui::DragFloat("Sensor Height", &camera->cameraParams.sensor_height, 0.1f, 1.f, 80.f, "%.2f", clamp);
             ImGui::DragFloat("Focal Length", &camera->cameraParams.focal_length, 0.1f, 8.f, 500.f, "%.1f", clamp);
             ImGui::DragFloat("Aperture", &camera->cameraParams.aperture, 0.1f, 1.f, 32.f, "%.2f", clamp);
             ImGui::DragFloat("Focus Distance", &camera->cameraParams.focus_distance, 0.1f, 0.1f, 150.f, "%.2f", clamp);
