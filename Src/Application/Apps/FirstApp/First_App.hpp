@@ -5,6 +5,7 @@
 #include "Rendering/Core/Renderer.hpp"
 #include "Rendering/RHI/Descriptors.hpp"
 #include "Rendering/Resources/TextureManager.hpp"
+#include "Rendering/Resources/ModelImporter.hpp"
 #include "Rendering/FrameGraph/Frame_Graph.hpp"
 #include "Rendering/Core/Exposure.hpp"
 #include "Application/Editor/ImGui_Setup.hpp"
@@ -63,14 +64,15 @@ class FirstApp {
         Renderer renderer{window, device};
         AsyncLoader asyncLoader = AsyncLoader(device);
         TextureManager textureManager{device, asyncLoader, jobSystem.scheduler()};
+        ModelImporter modelImporter{device, textureManager, jobSystem.scheduler()};
         FrameGraph frameGraph;
-        
+
         AsyncLoadTask asyncLoadTask;
 
         // Note: Order of declarations matters
         std::unique_ptr<DescriptorPool> globalPool;
-        
+
         Scene scene;
-        EditorUI editorUI{device, window, renderer, scene, scenePath,
+        EditorUI editorUI{device, window, renderer, scene, modelImporter, scenePath,
                           vengine::resolveAssetPath("Src/Application/Apps/FirstApp/imgui.ini")};
 };

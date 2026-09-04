@@ -46,6 +46,7 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui_demo.cpp
     ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
     ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+    ${IMGUI_DIR}/misc/cpp/imgui_stdlib.cpp
 )
 add_library(imgui STATIC ${IMGUI_SOURCES})
 target_include_directories(imgui PUBLIC

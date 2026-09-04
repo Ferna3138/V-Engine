@@ -69,6 +69,17 @@ class Device {
         // graphics queues are the same handle, so one mutex covers both.
         std::mutex queueMutex;
 
+        // Guards `loadCommandPool` (the pool beginSingleTimeCommands()/
+        // endSingleTimeCommands() allocate from). Vulkan requires allocate/free -
+        // and, per spec, recording - on a VkCommandPool to be externally
+        // synchronised, and asset loading (model import, baked textures) can now
+        // run off the main thread, so concurrent one-shot loads must serialise
+        // against each other. This never contends with the render thread: its
+        // per-frame command buffers come from a separate pool (`commandPool`).
+        // Held for the whole begin/end span - locked in beginSingleTimeCommands(),
+        // unlocked in endSingleTimeCommands().
+        std::mutex commandPoolMutex;
+
         // vkDeviceWaitIdle, serialised against queue submissions on other threads.
         void waitIdle() {
             std::lock_guard<std::mutex> lock(queueMutex);
@@ -116,6 +127,7 @@ class Device {
         void createLogicalDevice();
         void createCommandPool();
         void createTransferCommandPool();
+        void createLoadCommandPool();
 
         // helper functions
         bool isDeviceSuitable(VkPhysicalDevice device);
@@ -131,8 +143,12 @@ class Device {
         VkDebugUtilsMessengerEXT debugMessenger;
         VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
         Window &window;
-        VkCommandPool commandPool;
-        VkCommandPool transferCommandPool;
+        VkCommandPool commandPool;         // Renderer's per-frame primary command buffers only.
+        VkCommandPool transferCommandPool; // AsyncLoader's dedicated streaming pool only.
+        VkCommandPool loadCommandPool;     // beginSingleTimeCommands()/endSingleTimeCommands() only - kept
+                                            // separate from `commandPool` so a background model import's
+                                            // one-shot allocate/free never races the render thread's
+                                            // per-frame recording on the same VkCommandPool.
 
         VkDevice device_;
         VkSurfaceKHR surface_;

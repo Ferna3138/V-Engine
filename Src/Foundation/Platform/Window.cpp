@@ -32,3 +32,15 @@ void Window::framebufferResizeCallback(GLFWwindow *_window, int width, int heigh
     window->width = width;
     window->height = height;
 }
+
+void Window::setDropCallback(DropCallback callback) {
+    dropCallback = std::move(callback);
+    glfwSetDropCallback(window, fileDropCallback);
+}
+
+void Window::fileDropCallback(GLFWwindow *_window, int count, const char **paths) {
+    auto window = reinterpret_cast<Window *>(glfwGetWindowUserPointer(_window));
+    if (!window->dropCallback) return;
+    std::vector<std::string> files(paths, paths + count);
+    window->dropCallback(files);
+}

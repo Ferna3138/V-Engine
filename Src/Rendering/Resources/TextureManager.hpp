@@ -71,8 +71,10 @@ class TextureManager{
         // not VkImage (which doesn't exist until the decode task runs).
         std::unordered_map<uint32_t, Texture*> pendingTextures;
 
-        // addTexture() runs on the main thread; update() runs on the I/O thread.
-        // Guards pendingTextures and every writeTextureToSlot() (i.e. host access
-        // to the shared bindless descriptor set).
+        // update() runs on the I/O thread; addTexture()/addRawTexture() run on
+        // the main thread or a background model-import worker thread. Guards
+        // nextIndex, pathToIndex, textures, decodeTasks, pendingTextures, and
+        // every writeTextureToSlot() (i.e. host access to the shared bindless
+        // descriptor set).
         std::mutex mutex;
     };

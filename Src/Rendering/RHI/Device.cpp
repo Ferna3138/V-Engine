@@ -58,7 +58,8 @@ void Device::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
         vkQueueWaitIdle(graphicsQueue_);
     }
 
-    vkFreeCommandBuffers(device_, commandPool, 1, &commandBuffer);
+    vkFreeCommandBuffers(device_, loadCommandPool, 1, &commandBuffer);
+    commandPoolMutex.unlock();  // paired with the lock taken in beginSingleTimeCommands()
 }
 
 void Device::createPipelineCache() {
@@ -117,14 +118,16 @@ Device::Device(Window &window) : window{window} {
     createLogicalDevice();
     createCommandPool();
     createTransferCommandPool();
+    createLoadCommandPool();
     createPipelineCache();
 }
 
 Device::~Device() {
-    savePipelineCache();  
+    savePipelineCache();
 
     vkDestroyCommandPool(device_, commandPool, nullptr);
     vkDestroyCommandPool(device_, transferCommandPool, nullptr);
+    vkDestroyCommandPool(device_, loadCommandPool, nullptr);
 
     vkDestroyDevice(device_, nullptr);
 
@@ -318,6 +321,25 @@ void Device::createCommandPool() {
 
     if (vkCreateCommandPool(device_, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create command pool!");
+    }
+}
+
+void Device::createLoadCommandPool() {
+    // Separate from `commandPool`: beginSingleTimeCommands()/endSingleTimeCommands()
+    // allocate/free/record here, which can now happen on a background model-import
+    // thread. Sharing a pool with the renderer's per-frame command buffers would
+    // mean either a lock on every frame's vkBeginCommandBuffer() or a threading
+    // violation - this pool exists so that never has to be a choice.
+    QueueFamilyIndices queueFamilyIndices = findPhysicalQueueFamilies();
+
+    VkCommandPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
+    poolInfo.flags =
+        VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+    if (vkCreateCommandPool(device_, &poolInfo, nullptr, &loadCommandPool) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create load command pool!");
     }
 }
 
@@ -573,10 +595,15 @@ void Device::createBuffer(
 }
 
 VkCommandBuffer Device::beginSingleTimeCommands() {
+    // Held until the matching endSingleTimeCommands() frees the buffer - every
+    // call site here begins/ends in one straight-line sequence, no early returns
+    // or nesting in between.
+    commandPoolMutex.lock();
+
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = commandPool;
+    allocInfo.commandPool = loadCommandPool;
     allocInfo.commandBufferCount = 1;
 
     VkCommandBuffer commandBuffer;

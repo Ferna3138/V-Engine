@@ -7,21 +7,24 @@
 #include "Rendering/RHI/Swap_Chain.hpp"
 #include "Rendering/Core/Renderer.hpp"
 #include "Foundation/Platform/Window.hpp"
+#include "Foundation/Platform/FileDialog.hpp"
 
 #include <imgui/imgui.h>
+#include <imgui/misc/cpp/imgui_stdlib.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
 #include <GLFW/glfw3.h>
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <utility>
 
 // ============================ EditorUI ============================
 
 EditorUI::EditorUI(Device& device, Window& window, Renderer& renderer,
-                   Scene& scene, std::string scenePath, std::string iniPath)
-    : device{device}, window{window}, renderer{renderer}, scene{scene},
+                   Scene& scene, ModelImporter& modelImporter, std::string scenePath, std::string iniPath)
+    : device{device}, window{window}, renderer{renderer}, scene{scene}, modelImporter{modelImporter},
       scenePath{std::move(scenePath)}, iniPath{std::move(iniPath)}, hierarchy{scene} {
     initBackend();
 }
@@ -72,6 +75,17 @@ void EditorUI::initBackend() {
     }
 
     ImGui_ImplGlfw_InitForVulkan(window.getGLFWwindow(), true);
+
+    // Drag-and-drop model import: filter to supported formats client-side so
+    // an accidental drop of unrelated files doesn't spam worker tasks/logs.
+    window.setDropCallback([this](const std::vector<std::string>& paths) {
+        for (const auto& path : paths) {
+            std::string ext = std::filesystem::path(path).extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+            if (ext == ".obj" || ext == ".gltf" || ext == ".glb")
+                modelImporter.requestImport(path);
+        }
+    });
 
     ImGui_ImplVulkan_InitInfo init_info{};
     init_info.Instance = device.getInstance();
@@ -130,6 +144,11 @@ void EditorUI::drawDockspaceAndMenu() {
                 vengine::saveScene(scenePath, scene);
             if (ImGui::MenuItem("Reload Scene"))
                 reloadRequested = true;
+            ImGui::Separator();
+            if (ImGui::MenuItem("Import Model...")) {
+                if (auto path = vengine::openModelFileDialog())
+                    modelImporter.requestImport(*path);
+            }
             ImGui::Separator();
             if (ImGui::MenuItem("Exit"))
                 glfwSetWindowShouldClose(window.getGLFWwindow(), GLFW_TRUE);
@@ -223,8 +242,31 @@ void SceneHierarchyPanel::draw() {
         }
 
         bool isSelected = (selectedEntity == entity);
-        if(ImGui::Selectable(combinedLabel.c_str(), isSelected))
-            selectedEntity = entity;
+        if (renamingEntity == entity) {
+            if (renameFocusPending) {
+                ImGui::SetKeyboardFocusHere();
+                renameFocusPending = false;
+            }
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            bool committed = ImGui::InputText("##rename", &renameBuffer, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
+            bool cancelled = ImGui::IsItemDeactivated() && ImGui::IsKeyPressed(ImGuiKey_Escape, false);
+            if (committed || (ImGui::IsItemDeactivated() && !cancelled)) {
+                if (!renameBuffer.empty())
+                    registry.get_or_emplace<TagComponent>(entity).name = renameBuffer;
+                renamingEntity = entt::null;
+            } else if (cancelled) {
+                renamingEntity = entt::null;
+            }
+        } else {
+            if (ImGui::Selectable(combinedLabel.c_str(), isSelected))
+                selectedEntity = entity;
+            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                selectedEntity = entity;
+                renamingEntity = entity;
+                renameBuffer = name;
+                renameFocusPending = true;
+            }
+        }
 
         ImGui::PopID();
     }
@@ -343,7 +385,22 @@ void SceneHierarchyPanel::drawInspector(){
     }
     
     if (auto* model = registry.try_get<ModelComponent>(selectedEntity)){
-        ImGui::SliderFloat3("Scale", &transform.scale.x, 0.0f, 10.0f);
+        ImGui::Checkbox("Link Scale Axes", &uniformScaleLocked);
+        glm::vec3 previousScale = transform.scale;
+        if (ImGui::SliderFloat3("Scale", &transform.scale.x, 0.0f, 10.0f) && uniformScaleLocked) {
+            // Find the axis the drag actually moved, then carry the same ratio
+            // (or, from zero, the same absolute value) over to the other two.
+            for (int axis = 0; axis < 3; axis++) {
+                if (transform.scale[axis] == previousScale[axis]) continue;
+                bool fromZero = previousScale[axis] == 0.0f;
+                float ratio = fromZero ? 0.0f : transform.scale[axis] / previousScale[axis];
+                for (int other = 0; other < 3; other++) {
+                    if (other == axis) continue;
+                    transform.scale[other] = fromZero ? transform.scale[axis] : previousScale[other] * ratio;
+                }
+                break;
+            }
+        }
         ImGui::Separator();
     }
 

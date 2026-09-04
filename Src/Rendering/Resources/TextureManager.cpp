@@ -33,6 +33,12 @@ TextureManager::TextureManager(Device& _device, AsyncLoader& _loader, enki::Task
 }
 
 uint32_t TextureManager::addTexture(const std::string& filepath, VkFormat format) {
+    // Held for the whole body (not just the descriptor write below): nextIndex,
+    // pathToIndex, textures and decodeTasks are all mutated here too, and this
+    // can now be called from a background model-import worker thread as well as
+    // the main thread, not just from update()'s I/O thread.
+    std::lock_guard<std::mutex> lock(mutex);
+
     if (nextIndex >= MAX_BINDLESS_TEXTURES) {
         throw std::runtime_error("Maximum number of bindless textures reached.");
     }
@@ -47,11 +53,8 @@ uint32_t TextureManager::addTexture(const std::string& filepath, VkFormat format
     textures.push_back(std::make_unique<Texture>(device, loader, filepath, format));
     Texture* tex = textures.back().get();
 
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        writeTextureToSlot(*textures[1], slot);  // white placeholder until the upload lands
-        pendingTextures[slot] = tex;
-    }
+    writeTextureToSlot(*textures[1], slot);  // white placeholder until the upload lands
+    pendingTextures[slot] = tex;
 
     // Register the pending entry above BEFORE the decode task can enqueue an
     // upload the I/O thread might retire.
@@ -67,6 +70,10 @@ uint32_t TextureManager::addTexture(const std::string& filepath, VkFormat format
 
 uint32_t TextureManager::addRawTexture(const std::string& key, uint8_t r, uint8_t g, uint8_t b,
                                        uint8_t a, VkFormat format) {
+    // Same reasoning as addTexture(): held for the whole body since this can
+    // now also run on a background model-import worker thread.
+    std::lock_guard<std::mutex> lock(mutex);
+
     auto it = pathToIndex.find(key);
     if (it != pathToIndex.end()) return it->second;
 
@@ -81,7 +88,6 @@ uint32_t TextureManager::addRawTexture(const std::string& key, uint8_t r, uint8_
         device, 1, 1, pixel, format,
         VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT));
 
-    std::lock_guard<std::mutex> lock(mutex);
     writeTextureToSlot(*textures.back(), slot);
     return slot;
 }

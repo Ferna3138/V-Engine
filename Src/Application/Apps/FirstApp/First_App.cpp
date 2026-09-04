@@ -25,6 +25,7 @@
 #include <array>
 #include <cassert>
 #include <chrono>
+#include <filesystem>
 #include <stdexcept>
 #include <numeric>
 
@@ -249,6 +250,17 @@ void FirstApp::run() {
             cameraComponent = &scene.getRegistry().get<CameraComponent>(cameraEntity);
             cameraController = KeyboardMovementController{};
             cameraController.syncFromTransform(scene.getRegistry().get<TransformComponent>(cameraEntity));
+        }
+
+        // Models imported in the background (File > Import Model, drag-and-drop)
+        // land here once their GPU upload is done - registry mutation stays on
+        // the main thread, same as everything else touching `scene`.
+        for (auto& finishedImport : modelImporter.pollFinishedImports()) {
+            entt::entity entity = scene.createModelEntity(finishedImport.model, finishedImport.sourcePath);
+            std::string meshName = std::filesystem::path(finishedImport.sourcePath).stem().string();
+            if (!meshName.empty())
+                scene.getRegistry().get<TagComponent>(entity).name = meshName;
+            editorUI.selectEntity(entity);
         }
 
         // Time & FPS
