@@ -69,8 +69,8 @@ void PointLightSystem::update(FrameInfo &frameInfo, GlobalUbo &ubo) {
     for (const auto& light : frameInfo.renderScene.lights) {
         assert(lightIndex < MAX_LIGHTS && "Exceeded maximum number of lights");
 
-        ubo.pointLights[lightIndex].position = glm::vec4(light.position, light.radius);
-        ubo.pointLights[lightIndex].colour   = light.colour; // full vec4, alpha = intensity
+        ubo.pointLights[lightIndex].position = glm::vec4(light.position, light.range);
+        ubo.pointLights[lightIndex].colour   = light.colour; // rgb + luminous power (lm) in .w
 
         ++lightIndex;
     }

@@ -65,8 +65,9 @@ struct DirectionalLightComponent {
 };
 
 struct PointLightComponent {
-    glm::vec4 colour;
-    float radius;
+    glm::vec4 colour;      // rgb + luminous power (lumens) in .w
+    float radius;          // emitter/billboard size
+    float range = 20.f;    // influence cutoff distance (authoring/perf bound, not physical)
     bool visible = true;
 };
 

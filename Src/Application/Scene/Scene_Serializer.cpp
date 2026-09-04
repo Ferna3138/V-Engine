@@ -150,7 +150,8 @@ bool loadScene(const std::string& path, Scene& scene,
             const json& lightJson = entJson.at("pointLight");
             glm::vec4 colour = readVec4(lightJson, "colour", glm::vec4(1.f));
             float radius = lightJson.value("radius", 0.1f);
-            entt::entity entity = scene.createPointLight(colour, radius);
+            float range  = lightJson.value("range", 20.f);
+            entt::entity entity = scene.createPointLight(colour, radius, range);
             registry.get<TagComponent>(entity).name = name;
             registry.get<PointLightComponent>(entity).visible = lightJson.value("visible", true);
             if (entJson.contains("transform"))
@@ -192,6 +193,7 @@ bool saveScene(const std::string& path, const Scene& scene) {
             entJson["pointLight"] = json{
                 {"colour", writeVec4(light->colour)},
                 {"radius", light->radius},
+                {"range", light->range},
                 {"visible", light->visible},
             };
         } else if (const auto* model = registry.try_get<const ModelComponent>(entity)) {

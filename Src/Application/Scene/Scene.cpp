@@ -31,9 +31,9 @@ entt::entity Scene::createDirectionalLight(glm::vec4 colour, glm::vec3 direction
     return entity;
 }
 
-entt::entity Scene::createPointLight(glm::vec4 colour, float radius) {
+entt::entity Scene::createPointLight(glm::vec4 colour, float radius, float range) {
     auto entity = createEntity("PointLight");
-    registry.emplace<PointLightComponent>(entity, PointLightComponent{colour, radius});
+    registry.emplace<PointLightComponent>(entity, PointLightComponent{colour, radius, range});
     return entity;
 }
 
@@ -71,7 +71,7 @@ void Scene::buildRenderScene(RenderScene& out) {
         auto& transform = lights.get<TransformComponent>(entity);
         auto& light = lights.get<PointLightComponent>(entity);
         if (!light.visible) continue;
-        out.lights.push_back(RenderLight{transform.translation, light.colour, light.radius});
+        out.lights.push_back(RenderLight{transform.translation, light.colour, light.radius, light.range});
     }
 }
 

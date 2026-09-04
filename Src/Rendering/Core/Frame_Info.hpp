@@ -10,8 +10,8 @@
 #define MAX_LIGHTS 10
 
 struct PointLight {
-    glm::vec4 position{}; // Ignore w
-    glm::vec4 colour{}; // W is Intensity
+    glm::vec4 position{}; // xyz = world pos, w = influence range
+    glm::vec4 colour{};   // rgb = colour, w = luminous power (lumens)
 };
 
 struct GlobalUbo{

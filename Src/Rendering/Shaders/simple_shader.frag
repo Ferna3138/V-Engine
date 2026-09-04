@@ -28,9 +28,6 @@ layout(push_constant) uniform Push {
 
 
 void main() {
-    vec3 diffuseLight = ubo.ambientLightColor.xyz * ubo.ambientLightColor.w;
-    vec3 specularLight = vec3(0.0);
-
     vec3 N = normalize(fragNormalWorld);
     vec3 T = normalize(fragTangentWorld - N * dot(N, fragTangentWorld));
     vec3 B = cross(N, T);
@@ -52,36 +49,42 @@ void main() {
     vec3 albedo = texture(textures[nonuniformEXT(fragTexIndex)], fragUV).rgb;
     vec3 F0 = mix(vec3(0.04), albedo, metallic);
 
+    // Crude ambient fill (flat, non-directional). A stand-in until the indirect
+    // illumination pass lands; also a manual floor when direct light drops to 0.
+    vec3 colour = ubo.ambientLightColor.rgb * ubo.ambientLightColor.w * albedo;
+
     for (int i = 0; i < ubo.numLights; i++) {
         PointLight light = ubo.pointLights[i];
-        vec3 L = light.position.xyz - fragPosWorld;
-        float attenuation = 1.0 / dot(L, L);
-        L = normalize(L);
 
-        vec3 H = normalize(viewDirection + L);
+        vec3  toLight = light.position.xyz - fragPosWorld;
+        float dist2   = dot(toLight, toLight);
+        vec3  L       = toLight * inversesqrt(dist2);
+        vec3  H       = normalize(viewDirection + L);
+        float NdotL   = max(dot(surfaceNormal, L), 0.0);
 
-        float NdotL = max(dot(surfaceNormal, L), 0.0);
+        // Physical inverse-square, then a smooth window so the light's influence
+        // reaches exactly 0 at its range (a perf/authoring bound, not physics).
+        float range  = light.position.w;
+        float atten  = 1.0 / max(dist2, 1e-4);
+        float w      = clamp(1.0 - (dist2 * dist2) / (range * range * range * range), 0.0, 1.0);
+        atten       *= w * w;
 
-        vec3 radiance = light.colour.xyz * light.colour.w * attenuation * 5.0;
+        // colour.w is luminous power (lm); isotropic point light -> I = Phi / 4pi.
+        vec3 radiance = light.colour.rgb * (light.colour.w / (4.0 * PI)) * atten;
 
-        // Cook–Torrance BRDF with GGX
+        // Cook–Torrance specular
         float NDF = DistributionGGX(surfaceNormal, H, roughness);
         float G   = GeometrySmith(surfaceNormal, viewDirection, L, roughness);
         vec3  F   = FresnelSchlick(max(dot(H, viewDirection), 0.0), F0);
+        vec3 specular = (NDF * G * F) /
+                        (4.0 * max(dot(surfaceNormal, viewDirection), 0.0) * NdotL + 1e-4);
 
-        vec3 numerator   = NDF * G * F;
-        float denominator = 4.0 * max(dot(surfaceNormal, viewDirection), 0.0) * NdotL + 0.0001;
-        vec3 specular = numerator / denominator;
+        // Lambertian diffuse, energy-split against specular, no diffuse for metals.
+        vec3 kD = (vec3(1.0) - F) * (1.0 - metallic);
+        vec3 diffuse = kD * albedo / PI;
 
-        // Energy conservation
-        vec3 kS = F;
-        vec3 kD = vec3(1.0) - kS;
-        kD *= 1.0 - metallic;
-
-        // Accumulate lighting
-        diffuseLight  += kD * radiance * NdotL;
-        specularLight += specular * radiance * NdotL;
+        colour += (diffuse + specular) * radiance * NdotL;
     }
-    
-    outColour = vec4(diffuseLight * albedo + specularLight, 1.0);
+
+    outColour = vec4(colour, 1.0);
 }

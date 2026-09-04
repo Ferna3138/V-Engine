@@ -16,7 +16,7 @@ public:
     entt::entity createSpotLight(glm::vec4 colour, float radius, float innerCutoff, float outerCutoff);
     entt::entity createAreaLight(glm::vec4 colour, float width, float height);
     entt::entity createDirectionalLight(glm::vec4 colour, glm::vec3 direction);
-    entt::entity createPointLight(glm::vec4 colour, float radius);
+    entt::entity createPointLight(glm::vec4 colour, float radius, float range = 20.f);
 
     entt::entity createModelEntity(std::shared_ptr<Model> model, std::string sourcePath = {});
 

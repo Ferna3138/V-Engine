@@ -34,8 +34,11 @@ inline CameraExposure computeExposure(const CamParameters& p) {
     // The scene is locked to a fixed exposure target. Aperture and shutter angle
     // are creative controls (DoF / motion blur) and must not change brightness,
     // so ISO is solved to hold EV100 constant. Only EV Comp shifts exposure.
-    constexpr float kTargetEV100      = 10.0f;    // the "correct" exposure the scene is authored for
-    constexpr float kSceneCalibration = 2500.0f;  // engine light units -> photometric range (tune once)
+    constexpr float kTargetEV100      = 10.0f;   // the "correct" exposure the scene is authored for
+    // Lights now carry luminous power (lm) and the BRDF is normalised, so the
+    // shader output is already ~photometric. This is a small residual gain to
+    // land middle-grey at the target EV — tune once for your content.
+    constexpr float kSceneCalibration = 180.0f;
 
     out.scale = kSceneCalibration / (1.2f * std::exp2(kTargetEV100));
     out.scale *= std::exp2(p.exposure);           // EV Comp — the only brightness control

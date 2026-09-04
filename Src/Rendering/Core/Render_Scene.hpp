@@ -22,8 +22,9 @@ struct RenderObject {
 
 struct RenderLight {
     glm::vec3 position{0.f};
-    glm::vec4 colour{1.f};         // rgb + intensity in .w
-    float radius = 0.f;
+    glm::vec4 colour{1.f};         // rgb + luminous power (lumens) in .w
+    float radius = 0.f;            // emitter/billboard size
+    float range = 20.f;           // influence cutoff distance
 };
 
 struct RenderScene {

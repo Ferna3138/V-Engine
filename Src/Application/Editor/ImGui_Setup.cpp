@@ -272,8 +272,12 @@ void SceneHierarchyPanel::drawInspector(){
     if (auto* light = registry.try_get<PointLightComponent>(selectedEntity)) {
         ImGui::Separator();
         ImGui::ColorEdit3("Color", &light->colour.x);
-        ImGui::DragFloat("Intensity", &light->colour.w, 1.0f, 0.0f, 50.0f);
-        ImGui::DragFloat("Radius", &light->radius, 0.01f, 0.0f, 5.0f);
+        ImGui::DragFloat("Power (lm)", &light->colour.w, 25.0f, 0.0f, 50000.0f, "%.0f",
+                         ImGuiSliderFlags_AlwaysClamp);
+        ImGui::DragFloat("Range", &light->range, 0.1f, 0.1f, 200.0f, "%.1f",
+                         ImGuiSliderFlags_AlwaysClamp);
+        ImGui::DragFloat("Radius", &light->radius, 0.01f, 0.0f, 5.0f, "%.2f",
+                         ImGuiSliderFlags_AlwaysClamp);
     }
     
     if (auto* camera = registry.try_get<CameraComponent>(selectedEntity)){
