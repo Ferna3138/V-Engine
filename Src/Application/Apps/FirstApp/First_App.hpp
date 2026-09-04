@@ -11,14 +11,8 @@
 
 #include "Application/Scene/Scene.hpp"
 #include "Foundation/Jobs/JobSystem.hpp"
+#include "Foundation/Platform/AssetPath.hpp"
 #include "Rendering/Resources/Async_Loader.hpp"
-
-// ImGui
-//#define IMGUI_ENABLE_DOCKING
-#include <imgui/imgui.h>
-#include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_vulkan.h>
-
 
 // Std
 #include <memory>
@@ -57,22 +51,10 @@ class FirstApp {
 
 
     private:
-        // ImGui
-        void setUpImgui();
-        void renderUI();
-        void drawMainMenuBar();
-        VkDescriptorPool imguiPool;
-        // Backs ImGuiIO::IniFilename (ImGui keeps the pointer, so this must
-        // outlive the ImGui context).
-        std::string imguiIniFilePath;
-        bool visualisePointLights = true;
-        glm::vec3 backgroundColour{0.02f, 0.02f, 0.02f};
-
         void loadGameObjects();
         entt::entity resolveOrCreateCamera();
 
         std::string scenePath{"Scenes/sponza.json"};
-        bool sceneReloadRequested = false;
 
         vengine::JobSystem jobSystem;
 
@@ -89,5 +71,6 @@ class FirstApp {
         std::unique_ptr<DescriptorPool> globalPool;
         
         Scene scene;
-        SceneHierarchyPanel sceneHierarchyPanel{scene};
+        EditorUI editorUI{device, window, renderer, scene, scenePath,
+                          vengine::resolveAssetPath("Src/Application/Apps/FirstApp/imgui.ini")};
 };

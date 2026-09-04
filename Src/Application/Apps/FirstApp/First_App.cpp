@@ -62,11 +62,7 @@ FirstApp::~FirstApp() {
     asyncLoadTask.execute = false;
     asyncLoader.wakeForShutdown();  // unblock waitForWork() so the pinned task can exit
     jobSystem.shutdown();
-
-    ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
-
-    ImGui_ImplVulkan_Shutdown();
-    vkDestroyDescriptorPool(device.device(), imguiPool, nullptr);
+    // ImGui teardown happens in ~EditorUI (a member, destroyed before `device`).
 }
 
 
@@ -200,7 +196,7 @@ void FirstApp::run() {
             vkBeginCommandBuffer(lightCB, &secBeginInfo);
             vkCmdSetViewport(lightCB, 0, 1, &viewport);
             vkCmdSetScissor(lightCB, 0, 1, &scissor);
-            if (visualisePointLights) {
+            if (editorUI.visualisePointLights) {
                 FrameInfo lightFi = fi; lightFi.commandBuffer = lightCB;
                 pointLightSystem.render(lightFi);
             }
@@ -224,9 +220,6 @@ void FirstApp::run() {
 
     
 
-    setUpImgui();
-
-
     // The scene file creates the camera entity; resolveOrCreateCamera() falls
     // back to a default one. Held by pointer so it can be rebound after a scene
     // reload.
@@ -247,8 +240,7 @@ void FirstApp::run() {
     while (!window.shouldClose()) {
         glfwPollEvents();
 
-        if (sceneReloadRequested) {
-            sceneReloadRequested = false;
+        if (editorUI.consumeSceneReloadRequest()) {
             haveHistory = false;
             device.waitIdle();
             scene.getRegistry().clear();
@@ -349,7 +341,10 @@ void FirstApp::run() {
             uboBuffers[frameIndex]->writeToBuffer(&ubo);
             uboBuffers[frameIndex]->flush();
 
-            renderUI();
+            editorUI.draw();
+            frameGraph.setClearColour(editorUI.backgroundColour.r,
+                                      editorUI.backgroundColour.g,
+                                      editorUI.backgroundColour.b);
 
             // Frame graph: depth pre-pass -> forward, into an offscreen image,
             //with barriers auto-inserted from the graph edges.
@@ -419,7 +414,7 @@ void FirstApp::run() {
                 // graphics queue, so it must be serialised against the async
                 // loader thread's queue submissions.
                 std::lock_guard<std::mutex> lock(device.queueMutex);
-                ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), imguiCB);
+                editorUI.recordDrawData(imguiCB);
             }
             vkEndCommandBuffer(imguiCB);
             vkCmdExecuteCommands(commandBuffer, 1, &imguiCB);
@@ -430,8 +425,6 @@ void FirstApp::run() {
     }
 
     device.waitIdle();
-    ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
-
 }
 
 
@@ -452,149 +445,4 @@ entt::entity FirstApp::resolveOrCreateCamera() {
     registry.emplace<CameraComponent>(camera);
     registry.get<TransformComponent>(camera).translation = {0.f, 1.5f, 0.5f};
     return camera;
-}
-
-
-
-void FirstApp::renderUI() {
-    ImGuiIO& io = ImGui::GetIO();
-    (void)io;
-
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_MenuBar;
-    window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-    window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-    window_flags |= ImGuiWindowFlags_NoBackground;
-
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->WorkPos);
-    ImGui::SetNextWindowSize(viewport->WorkSize);
-    ImGui::SetNextWindowViewport(viewport->ID);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-
-    ImGui::Begin("DockSpace", nullptr, window_flags);
-    ImGui::PopStyleVar(2);
-
-    drawMainMenuBar();
-
-    ImGuiID dockspace_id = ImGui::GetID("MyDockspace");
-    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
-
-    ImGui::End();
-
-    // === Control Panel ===
-
-    ImGui::Begin("Control Panel");
-
-    float fps = ImGui::GetIO().Framerate;
-    ImGui::Text("FPS: %.1f (%.3f ms/frame)", fps, 1000.0f / fps);
-
-    ImGui::Separator();
-
-    ImGui::ColorEdit3("Background", &backgroundColour.x);
-    frameGraph.setClearColour(backgroundColour.r, backgroundColour.g, backgroundColour.b);
-
-    sceneHierarchyPanel.draw();
-    ImGui::End();
-    ImGui::Render();
-}
-
-void FirstApp::drawMainMenuBar() {
-    if (ImGui::BeginMenuBar()) {
-        if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("Save Scene", "Ctrl+S"))
-                vengine::saveScene(scenePath, scene);
-            if (ImGui::MenuItem("Reload Scene"))
-                sceneReloadRequested = true;
-            ImGui::Separator();
-            if (ImGui::MenuItem("Exit"))
-                glfwSetWindowShouldClose(window.getGLFWwindow(), GLFW_TRUE);
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Edit")) {
-            ImGui::MenuItem("Undo", "Ctrl+Z", false, false);
-            ImGui::MenuItem("Redo", "Ctrl+Y", false, false);
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("View")) {
-            ImGui::MenuItem("Visualise Point Lights", nullptr, &visualisePointLights);
-            ImGui::EndMenu();
-        }
-
-        ImGui::EndMenuBar();
-    }
-
-    // Keyboard shortcut, active regardless of which panel has focus.
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
-        vengine::saveScene(scenePath, scene);
-}
-
-void FirstApp::setUpImgui() {
-    VkDescriptorPoolSize pool_sizes[] = {
-        {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
-        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
-        {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
-        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
-        {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
-        {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
-        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
-        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
-        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
-        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
-        {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000},
-    };
-
-    VkDescriptorPoolCreateInfo pool_info{};
-    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    pool_info.maxSets = 1000;
-    pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
-    pool_info.pPoolSizes = pool_sizes;
-
-    vkCreateDescriptorPool(device.device(), &pool_info, nullptr, &imguiPool);
-
-    // --- ImGui Init ---
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-
-    // Keep this app's ImGui layout next to its own code, resolved against the
-    // project root so it's stable no matter which folder the app is launched
-    // from.
-    imguiIniFilePath = vengine::resolveAssetPath("Src/Application/Apps/FirstApp/imgui.ini");
-    ImGui::GetIO().IniFilename = imguiIniFilePath.c_str();
-
-
-    // Enable Docking + Viewports
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Optional
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-
-    ImGuiStyle& style = ImGui::GetStyle();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-        style.WindowRounding = 1.0f;
-        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
-    }
-
-    ImGui_ImplGlfw_InitForVulkan(window.getGLFWwindow(), true);
-
-    ImGui_ImplVulkan_InitInfo init_info{};
-    init_info.Instance = device.getInstance();
-    init_info.PhysicalDevice = device.getPhysicalDevice();
-    init_info.Device = device.device();
-    init_info.Queue = device.graphicsQueue();
-    init_info.DescriptorPool = imguiPool;
-    init_info.MinImageCount = 3;
-    init_info.ImageCount = SwapChain::MAX_FRAMES_IN_FLIGHT;
-    init_info.UseDynamicRendering = false;
-    init_info.RenderPass = renderer.getSwapChainRenderPass();
-    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-
-    ImGui_ImplVulkan_Init(&init_info);
 }

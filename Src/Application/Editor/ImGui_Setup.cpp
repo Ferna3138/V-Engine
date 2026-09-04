@@ -1,9 +1,174 @@
 // ImGui_Setup.cpp
 #include "Application/Editor/ImGui_Setup.hpp"
 #include "Application/Scene/Components.hpp"
+#include "Application/Scene/Scene_Serializer.hpp"
+
+#include "Rendering/RHI/Device.hpp"
+#include "Rendering/RHI/Swap_Chain.hpp"
+#include "Rendering/Core/Renderer.hpp"
+#include "Foundation/Platform/Window.hpp"
+
 #include <imgui/imgui.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_vulkan.h>
+#include <GLFW/glfw3.h>
+
 #include <algorithm>
 #include <cmath>
+#include <utility>
+
+// ============================ EditorUI ============================
+
+EditorUI::EditorUI(Device& device, Window& window, Renderer& renderer,
+                   Scene& scene, std::string scenePath, std::string iniPath)
+    : device{device}, window{window}, renderer{renderer}, scene{scene},
+      scenePath{std::move(scenePath)}, iniPath{std::move(iniPath)}, hierarchy{scene} {
+    initBackend();
+}
+
+EditorUI::~EditorUI() {
+    ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+    vkDestroyDescriptorPool(device.device(), pool, nullptr);
+}
+
+void EditorUI::initBackend() {
+    VkDescriptorPoolSize pool_sizes[] = {
+        {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+        {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
+        {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000},
+    };
+
+    VkDescriptorPoolCreateInfo pool_info{};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets = 1000;
+    pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
+    pool_info.pPoolSizes = pool_sizes;
+    vkCreateDescriptorPool(device.device(), &pool_info, nullptr, &pool);
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::GetIO().IniFilename = iniPath.c_str();
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        style.WindowRounding = 1.0f;
+        style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+    }
+
+    ImGui_ImplGlfw_InitForVulkan(window.getGLFWwindow(), true);
+
+    ImGui_ImplVulkan_InitInfo init_info{};
+    init_info.Instance = device.getInstance();
+    init_info.PhysicalDevice = device.getPhysicalDevice();
+    init_info.Device = device.device();
+    init_info.Queue = device.graphicsQueue();
+    init_info.DescriptorPool = pool;
+    init_info.MinImageCount = 3;
+    init_info.ImageCount = SwapChain::MAX_FRAMES_IN_FLIGHT;
+    init_info.UseDynamicRendering = false;
+    init_info.RenderPass = renderer.getSwapChainRenderPass();
+    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    ImGui_ImplVulkan_Init(&init_info);
+}
+
+bool EditorUI::consumeSceneReloadRequest() {
+    bool r = reloadRequested;
+    reloadRequested = false;
+    return r;
+}
+
+void EditorUI::draw() {
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    drawDockspaceAndMenu();
+    drawControlPanel();
+
+    ImGui::Render();
+}
+
+void EditorUI::recordDrawData(VkCommandBuffer cb) {
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cb);
+}
+
+void EditorUI::drawDockspaceAndMenu() {
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_MenuBar;
+    window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+    window_flags |= ImGuiWindowFlags_NoBackground;
+
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->WorkPos);
+    ImGui::SetNextWindowSize(viewport->WorkSize);
+    ImGui::SetNextWindowViewport(viewport->ID);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+
+    ImGui::Begin("DockSpace", nullptr, window_flags);
+    ImGui::PopStyleVar(2);
+
+    if (ImGui::BeginMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem("Save Scene", "Ctrl+S"))
+                vengine::saveScene(scenePath, scene);
+            if (ImGui::MenuItem("Reload Scene"))
+                reloadRequested = true;
+            ImGui::Separator();
+            if (ImGui::MenuItem("Exit"))
+                glfwSetWindowShouldClose(window.getGLFWwindow(), GLFW_TRUE);
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Edit")) {
+            ImGui::MenuItem("Undo", "Ctrl+Z", false, false);
+            ImGui::MenuItem("Redo", "Ctrl+Y", false, false);
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("View")) {
+            ImGui::MenuItem("Visualise Point Lights", nullptr, &visualisePointLights);
+            ImGui::EndMenu();
+        }
+        ImGui::EndMenuBar();
+    }
+
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
+        vengine::saveScene(scenePath, scene);
+
+    ImGuiID dockspace_id = ImGui::GetID("MyDockspace");
+    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+    ImGui::End();
+}
+
+void EditorUI::drawControlPanel() {
+    ImGui::Begin("Control Panel");
+
+    float fps = ImGui::GetIO().Framerate;
+    ImGui::Text("FPS: %.1f (%.3f ms/frame)", fps, 1000.0f / fps);
+    ImGui::Separator();
+    ImGui::ColorEdit3("Background", &backgroundColour.x);
+
+    hierarchy.draw();
+    ImGui::End();
+}
+
+// ======================= SceneHierarchyPanel =======================
 
 namespace {
 struct SensorPreset { const char* name; float width; float height; };  // mm
