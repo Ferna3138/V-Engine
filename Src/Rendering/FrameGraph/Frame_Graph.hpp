@@ -99,6 +99,11 @@ class FrameGraph {
 
         VkImageView getResourceImageView(const std::string& name) const;
 
+        // Clear colour for every colour attachment cleared with LOAD_OP_CLEAR.
+        // Only the earliest scene target's clear is actually visible (later ones
+        // are fully overwritten), so this acts as the scene background colour.
+        void setClearColour(float r, float g, float b) { clearColour = {{ r, g, b, 1.0f }}; }
+
         ~FrameGraph();
 
     private:
@@ -115,6 +120,7 @@ class FrameGraph {
         void topologicalSort();
 
         uint32_t presentOutputResource = UINT32_MAX;
+        VkClearColorValue clearColour{{ 0.02f, 0.02f, 0.02f, 1.0f }};
 
         Device* ownerDevice = nullptr;
 

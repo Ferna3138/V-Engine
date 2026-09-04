@@ -66,6 +66,7 @@ class FirstApp {
         // outlive the ImGui context).
         std::string imguiIniFilePath;
         bool visualisePointLights = true;
+        glm::vec3 backgroundColour{0.02f, 0.02f, 0.02f};
 
         void loadGameObjects();
         entt::entity resolveOrCreateCamera();

@@ -495,6 +495,9 @@ void FirstApp::renderUI() {
 
     ImGui::Separator();
 
+    ImGui::ColorEdit3("Background", &backgroundColour.x);
+    frameGraph.setClearColour(backgroundColour.r, backgroundColour.g, backgroundColour.b);
+
     sceneHierarchyPanel.draw();
     ImGui::End();
     ImGui::Render();

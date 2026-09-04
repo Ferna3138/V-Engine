@@ -496,7 +496,7 @@ void FrameGraph::execute(VkCommandBuffer commandBuffer) {
             if (isDepthFormat(res.vkFormat)) {
                 clear.depthStencil = { 1.0f, 0 };
             } else {
-                clear.color = { 0.02f, 0.02f, 0.02f, 1.0f };
+                clear.color = clearColour;
             }
             clearValues.push_back(clear);
             width = res.resolutionWidth;
