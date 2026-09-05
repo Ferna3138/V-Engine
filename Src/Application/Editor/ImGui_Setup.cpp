@@ -331,6 +331,30 @@ void SceneHierarchyPanel::drawMaterialSection(Material& mat, uint32_t globalInde
             constexpr float kThumbnailSize = 48.0f;
             if (VkDescriptorSet thumb = getOrCreateThumbnail(texIndex); thumb != VK_NULL_HANDLE) {
                 ImGui::Image((ImTextureID)thumb, ImVec2(kThumbnailSize, kThumbnailSize));
+
+                // Magnifier: hovering the thumbnail shows a zoomed crop of
+                // whichever part of the texture is under the cursor, not just
+                // a bigger static copy.
+                if (ImGui::IsItemHovered()) {
+                    ImVec2 imageMin = ImGui::GetItemRectMin();
+                    ImVec2 imageMax = ImGui::GetItemRectMax();
+                    ImVec2 mousePos = ImGui::GetIO().MousePos;
+                    float relX = (mousePos.x - imageMin.x) / (imageMax.x - imageMin.x);
+                    float relY = (mousePos.y - imageMin.y) / (imageMax.y - imageMin.y);
+                    relX = std::clamp(relX, 0.f, 1.f);
+                    relY = std::clamp(relY, 0.f, 1.f);
+
+                    constexpr float kZoomRegion = 1.0f;   // fraction of the texture shown (~2.2x zoom)
+                    constexpr float kPreviewSize = 320.0f;
+                    float uv0x = std::clamp(relX - kZoomRegion * 0.5f, 0.f, 1.f - kZoomRegion);
+                    float uv0y = std::clamp(relY - kZoomRegion * 0.5f, 0.f, 1.f - kZoomRegion);
+
+                    ImGui::BeginTooltip();
+                    ImGui::Image((ImTextureID)thumb, ImVec2(kPreviewSize, kPreviewSize),
+                                 ImVec2(uv0x, uv0y), ImVec2(uv0x + kZoomRegion, uv0y + kZoomRegion));
+                    ImGui::EndTooltip();
+                }
+
                 ImGui::SameLine();
             }
 
