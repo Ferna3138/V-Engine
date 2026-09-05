@@ -8,9 +8,17 @@ namespace {
 
 // std430 mirror of `Material`, uploaded to the GPU verbatim - field order here
 // must match the `Material` struct declared in simple_shader.frag exactly.
-// Layout (zero padding): vec4 (16-aligned) then 8 tightly-packed 4-byte
-// scalars (32 bytes, itself 16-aligned) -> 48 bytes total, already a multiple
-// of 16 so the array stride needs no trailing pad either.
+// Layout: vec4 (16-aligned) then 8 tightly-packed 4-byte scalars (48 bytes),
+// then 3 flattened TextureTransforms (vec2+vec2+float+int = 24 bytes each,
+// all 8-byte-aligned offsets so no internal padding) -> 120 bytes, then 8
+// bytes of trailing pad so the total (128) is a multiple of 16 - required for
+// the array stride, since a nested struct member would force 16-byte
+// alignment in GLSL that a flat layout like this sidesteps entirely.
+//
+// Material::globalTransform is NOT part of this layout - it's a CPU/editor-
+// only bookkeeping value the Inspector uses to compute deltas for its "move
+// everything at once" controls, which it applies directly into each channel's
+// own TextureTransform. The GPU never needs to know it existed.
 struct MaterialGPU {
     glm::vec4 baseColour{1.f};
     int32_t albedoTexIndex = -1;
@@ -21,8 +29,33 @@ struct MaterialGPU {
     float roughness = 1.f;
     int32_t useMRTexture = 0;
     int32_t useNormalTexture = 0;
+
+    glm::vec2 albedoOffset{0.f};
+    glm::vec2 albedoScale{1.f};
+    float albedoRotation = 0.f;
+    int32_t albedoWrapMode = 0;
+
+    glm::vec2 mrOffset{0.f};
+    glm::vec2 mrScale{1.f};
+    float mrRotation = 0.f;
+    int32_t mrWrapMode = 0;
+
+    glm::vec2 normalOffset{0.f};
+    glm::vec2 normalScale{1.f};
+    float normalRotation = 0.f;
+    int32_t normalWrapMode = 0;
+
+    float _pad0 = 0.f;
+    float _pad1 = 0.f;
 };
-static_assert(sizeof(MaterialGPU) == 48, "MaterialGPU must match the std430 layout in simple_shader.frag");
+static_assert(sizeof(MaterialGPU) == 128, "MaterialGPU must match the std430 layout in simple_shader.frag");
+
+void packTransform(const TextureTransform& src, glm::vec2& offset, glm::vec2& scale, float& rotation, int32_t& wrapMode) {
+    offset = src.offset;
+    scale = src.scale;
+    rotation = src.rotationDegrees;
+    wrapMode = static_cast<int32_t>(src.wrapMode);
+}
 
 }  // namespace
 
@@ -92,6 +125,10 @@ void MaterialManager::update(int frameIndex) {
         dst.roughness = src.roughness;
         dst.useMRTexture = src.useMRTexture ? 1 : 0;
         dst.useNormalTexture = src.useNormalTexture ? 1 : 0;
+
+        packTransform(src.albedoTransform, dst.albedoOffset, dst.albedoScale, dst.albedoRotation, dst.albedoWrapMode);
+        packTransform(src.mrTransform, dst.mrOffset, dst.mrScale, dst.mrRotation, dst.mrWrapMode);
+        packTransform(src.normalTransform, dst.normalOffset, dst.normalScale, dst.normalRotation, dst.normalWrapMode);
     }
 
     if (count == 0) return;

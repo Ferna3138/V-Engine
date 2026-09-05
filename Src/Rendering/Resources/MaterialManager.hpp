@@ -13,27 +13,68 @@
 #include <string>
 #include <vector>
 
+// Matches the shader's manual UV-space wrap (simple_shader.frag) - chosen so
+// no per-material VkSampler is needed even though a texture slot can be
+// shared by materials that each want a different wrap behaviour.
+enum class TextureWrapMode : int32_t { Repeat = 0, Mirror = 1, Stretch = 2 };
+
+// Per-texture-slot UV transform: position/scale/rotation and wrap mode,
+// applied to that slot's UV before sampling. Independent per channel (albedo/
+// MR/normal can each tile differently), matching how it was asked for.
+struct TextureTransform {
+    glm::vec2 offset{0.f, 0.f};
+    glm::vec2 scale{1.f, 1.f};       // tiling: higher = more repeats
+    float rotationDegrees{0.f};      // around the UV centre (0.5, 0.5)
+    TextureWrapMode wrapMode{TextureWrapMode::Repeat};
+
+    // Inspector-only convenience (mirrors the mesh Transform's scale lock),
+    // but cheap enough to just persist alongside the rest of the transform.
+    bool uniformScaleLocked = false;
+};
+
+// CPU/editor-only bookkeeping for the Inspector's "move/scale/rotate every
+// texture at once" controls - never sent to the GPU. Rather than being a
+// separate transform composed at render time, each edit here computes a delta
+// (offset/rotation: difference from the previous value; scale: ratio) and
+// applies it directly into every channel's own TextureTransform, so this
+// struct's value is always exactly "how much has been nudged in so far" -
+// which means driving it back to identity (0 offset, 1 scale, 0 rotation)
+// exactly undoes the net effect, regardless of how many edits got there. No
+// wrap mode of its own: wrap is a discrete per-channel choice, so the
+// Inspector's "apply to all" control for it just writes straight into each
+// channel's transform instead of being tracked here.
+struct GlobalTextureTransform {
+    glm::vec2 offset{0.f, 0.f};
+    glm::vec2 scale{1.f, 1.f};
+    float rotationDegrees{0.f};
+    bool uniformScaleLocked = false;
+};
+
 // CPU-side, freely editable by the Inspector - this is exactly what ImGui
 // mutates directly; MaterialManager::update() pushes it to the GPU every
 // frame, so no dirty-flag/notification plumbing is needed for an edit to
 // take effect.
 struct Material {
     std::string name;
+    GlobalTextureTransform globalTransform;
 
     glm::vec3 baseColour{1.f};
     bool useAlbedoTexture = false;
     uint32_t albedoTexIndex = 1;   // TextureManager fallback slot 1 (white)
     std::string albedoTexturePath;
+    TextureTransform albedoTransform;
 
     float metallic = 0.f;
     float roughness = 1.f;
     bool useMRTexture = false;
     uint32_t mrTexIndex = 0;       // TextureManager fallback slot 0 (MR-neutral)
     std::string mrTexturePath;
+    TextureTransform mrTransform;
 
     bool useNormalTexture = false;
     uint32_t normalTexIndex = 2;   // TextureManager fallback slot 2 (flat normal)
     std::string normalTexturePath;
+    TextureTransform normalTransform;
 };
 
 // Global, bindless-style growable resource (same shape as TextureManager):

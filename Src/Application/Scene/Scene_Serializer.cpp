@@ -22,6 +22,12 @@ using json = nlohmann::json;
 namespace vengine {
 namespace {
 
+glm::vec2 readVec2(const json& j, const char* key, glm::vec2 fallback) {
+    if (!j.contains(key)) return fallback;
+    const auto& a = j.at(key);
+    return {a.at(0).get<float>(), a.at(1).get<float>()};
+}
+
 glm::vec3 readVec3(const json& j, const char* key, glm::vec3 fallback) {
     if (!j.contains(key)) return fallback;
     const auto& a = j.at(key);
@@ -41,6 +47,7 @@ void readTransform(const json& j, TransformComponent& transform) {
     transform.rotation = glm::quat(glm::radians(euler));
 }
 
+json writeVec2(glm::vec2 v) { return json::array({v.x, v.y}); }
 json writeVec3(glm::vec3 v) { return json::array({v.x, v.y, v.z}); }
 json writeVec4(glm::vec4 v) { return json::array({v.x, v.y, v.z, v.w}); }
 
@@ -96,6 +103,24 @@ json writeCameraParams(const CamParameters& p) {
     };
 }
 
+void readTextureTransform(const json& j, TextureTransform& t) {
+    t.offset = readVec2(j, "offset", t.offset);
+    t.scale = readVec2(j, "scale", t.scale);
+    t.rotationDegrees = j.value("rotationDegrees", t.rotationDegrees);
+    t.uniformScaleLocked = j.value("uniformScaleLocked", t.uniformScaleLocked);
+    t.wrapMode = static_cast<TextureWrapMode>(j.value("wrapMode", static_cast<int32_t>(t.wrapMode)));
+}
+
+json writeTextureTransform(const TextureTransform& t) {
+    return json{
+        {"offset", writeVec2(t.offset)},
+        {"scale", writeVec2(t.scale)},
+        {"rotationDegrees", t.rotationDegrees},
+        {"uniformScaleLocked", t.uniformScaleLocked},
+        {"wrapMode", static_cast<int32_t>(t.wrapMode)},
+    };
+}
+
 // Applies a saved per-material override on top of whatever the loader already
 // resolved from the source file's defaults. A texture path only takes effect
 // if present and non-empty - re-resolving it registers a (possibly new)
@@ -104,9 +129,12 @@ void readMaterialOverride(const json& j, Material& mat, TextureManager& textureM
     mat.baseColour = readVec3(j, "baseColour", mat.baseColour);
     mat.metallic = j.value("metallic", mat.metallic);
     mat.roughness = j.value("roughness", mat.roughness);
+    // mat.globalTransform is intentionally not persisted - it's session-only
+    // bookkeeping for the Inspector's "move everything at once" controls; its
+    // net effect is already baked into the per-channel transforms below.
 
-    auto applyTexture = [&](const char* useKey, const char* pathKey, bool& useTexture,
-                             uint32_t& texIndex, std::string& texPath, VkFormat format) {
+    auto applyTexture = [&](const char* useKey, const char* pathKey, const char* transformKey, bool& useTexture,
+                             uint32_t& texIndex, std::string& texPath, VkFormat format, TextureTransform& transform) {
         if (j.contains(useKey)) useTexture = j.at(useKey).get<bool>();
         if (j.contains(pathKey)) {
             std::string path = j.at(pathKey).get<std::string>();
@@ -115,13 +143,14 @@ void readMaterialOverride(const json& j, Material& mat, TextureManager& textureM
                 texPath = path;
             }
         }
+        if (j.contains(transformKey)) readTextureTransform(j.at(transformKey), transform);
     };
-    applyTexture("useAlbedoTexture", "albedoTexturePath", mat.useAlbedoTexture, mat.albedoTexIndex,
-                 mat.albedoTexturePath, VK_FORMAT_R8G8B8A8_SRGB);
-    applyTexture("useMRTexture", "mrTexturePath", mat.useMRTexture, mat.mrTexIndex,
-                 mat.mrTexturePath, VK_FORMAT_R8G8B8A8_UNORM);
-    applyTexture("useNormalTexture", "normalTexturePath", mat.useNormalTexture, mat.normalTexIndex,
-                 mat.normalTexturePath, VK_FORMAT_R8G8B8A8_UNORM);
+    applyTexture("useAlbedoTexture", "albedoTexturePath", "albedoTransform", mat.useAlbedoTexture, mat.albedoTexIndex,
+                 mat.albedoTexturePath, VK_FORMAT_R8G8B8A8_SRGB, mat.albedoTransform);
+    applyTexture("useMRTexture", "mrTexturePath", "mrTransform", mat.useMRTexture, mat.mrTexIndex,
+                 mat.mrTexturePath, VK_FORMAT_R8G8B8A8_UNORM, mat.mrTransform);
+    applyTexture("useNormalTexture", "normalTexturePath", "normalTransform", mat.useNormalTexture, mat.normalTexIndex,
+                 mat.normalTexturePath, VK_FORMAT_R8G8B8A8_UNORM, mat.normalTransform);
 }
 
 json writeMaterialOverride(const Material& mat) {
@@ -130,12 +159,15 @@ json writeMaterialOverride(const Material& mat) {
         {"baseColour", writeVec3(mat.baseColour)},
         {"useAlbedoTexture", mat.useAlbedoTexture},
         {"albedoTexturePath", mat.albedoTexturePath},
+        {"albedoTransform", writeTextureTransform(mat.albedoTransform)},
         {"metallic", mat.metallic},
         {"roughness", mat.roughness},
         {"useMRTexture", mat.useMRTexture},
         {"mrTexturePath", mat.mrTexturePath},
+        {"mrTransform", writeTextureTransform(mat.mrTransform)},
         {"useNormalTexture", mat.useNormalTexture},
         {"normalTexturePath", mat.normalTexturePath},
+        {"normalTransform", writeTextureTransform(mat.normalTransform)},
     };
 }
 

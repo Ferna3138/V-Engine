@@ -319,12 +319,51 @@ void SceneHierarchyPanel::releaseThumbnails() {
     thumbnailCache.clear();
 }
 
+namespace {
+// Shared by every per-channel Scale drag and the Global Scale drag: carries
+// the ratio from whichever axis moved onto the other axis when locked, same
+// logic as the mesh Transform's "Link Scale Axes".
+void dragLockedScale2(const char* label, glm::vec2& scale, bool locked) {
+    glm::vec2 previous = scale;
+    if (ImGui::DragFloat2(label, &scale.x, 0.01f, 0.0f, 100.0f) && locked) {
+        for (int axis = 0; axis < 2; axis++) {
+            if (scale[axis] == previous[axis]) continue;
+            bool fromZero = previous[axis] == 0.0f;
+            float ratio = fromZero ? 0.0f : scale[axis] / previous[axis];
+            int other = 1 - axis;
+            scale[other] = fromZero ? scale[axis] : previous[other] * ratio;
+            break;
+        }
+    }
+}
+
+// The "move/scale/rotate everything at once" controls apply directly into
+// each channel's own TextureTransform rather than being a separate value the
+// shader composes at render time - see GlobalTextureTransform's comment for
+// why that makes driving these back to identity a clean undo.
+void applyGlobalOffsetDelta(Material& mat, glm::vec2 delta) {
+    mat.albedoTransform.offset += delta;
+    mat.mrTransform.offset += delta;
+    mat.normalTransform.offset += delta;
+}
+void applyGlobalScaleRatio(Material& mat, glm::vec2 ratio) {
+    mat.albedoTransform.scale *= ratio;
+    mat.mrTransform.scale *= ratio;
+    mat.normalTransform.scale *= ratio;
+}
+void applyGlobalRotationDelta(Material& mat, float delta) {
+    mat.albedoTransform.rotationDegrees += delta;
+    mat.mrTransform.rotationDegrees += delta;
+    mat.normalTransform.rotationDegrees += delta;
+}
+}  // namespace
+
 void SceneHierarchyPanel::drawMaterialSection(Material& mat, uint32_t globalIndex) {
     // Shared by all three channels: a thumbnail (once the texture has
     // streamed in), the "Use Texture" toggle, the assigned file's name, a
     // Browse button, and recording this slot's rect for drag-and-drop.
     auto drawTextureSlot = [&](MaterialSlotChannel channel, bool& useTexture, uint32_t& texIndex,
-                                std::string& texPath, VkFormat format) {
+                                std::string& texPath, VkFormat format, TextureTransform& transform) {
         ImGui::PushID(static_cast<int>(channel));
         ImGui::Checkbox("Use Texture", &useTexture);
         if (useTexture) {
@@ -344,7 +383,7 @@ void SceneHierarchyPanel::drawMaterialSection(Material& mat, uint32_t globalInde
                     relX = std::clamp(relX, 0.f, 1.f);
                     relY = std::clamp(relY, 0.f, 1.f);
 
-                    constexpr float kZoomRegion = 1.0f;   // fraction of the texture shown (~2.2x zoom)
+                    constexpr float kZoomRegion = 1.0f;
                     constexpr float kPreviewSize = 320.0f;
                     float uv0x = std::clamp(relX - kZoomRegion * 0.5f, 0.f, 1.f - kZoomRegion);
                     float uv0y = std::clamp(relY - kZoomRegion * 0.5f, 0.f, 1.f - kZoomRegion);
@@ -370,6 +409,18 @@ void SceneHierarchyPanel::drawMaterialSection(Material& mat, uint32_t globalInde
                 }
             }
             ImGui::EndGroup();
+
+            ImGui::DragFloat2("Position", &transform.offset.x, 0.01f);
+
+            ImGui::Checkbox("Link Scale", &transform.uniformScaleLocked);
+            dragLockedScale2("Scale", transform.scale, transform.uniformScaleLocked);
+
+            ImGui::DragFloat("Rotation", &transform.rotationDegrees, 0.5f, -360.f, 360.f, "%.1f deg");
+
+            const char* wrapModeNames[] = {"Repeat", "Mirror", "Stretch"};
+            int wrapModeIndex = static_cast<int>(transform.wrapMode);
+            if (ImGui::Combo("Wrap Mode", &wrapModeIndex, wrapModeNames, IM_ARRAYSIZE(wrapModeNames)))
+                transform.wrapMode = static_cast<TextureWrapMode>(wrapModeIndex);
         }
         ImGui::PopID();
     };
@@ -379,20 +430,73 @@ void SceneHierarchyPanel::drawMaterialSection(Material& mat, uint32_t globalInde
     if (!ImGui::CollapsingHeader(mat.name.empty() ? "Material" : mat.name.c_str()))
         return;
 
+    // Moves/scales/rotates all three channels together. Each edit here
+    // computes a delta (offset/rotation: change since last value; scale:
+    // ratio) and applies it directly into every channel's own
+    // TextureTransform, so mat.globalTransform always equals exactly "how
+    // much has been nudged in so far" - driving it back to identity (0
+    // offset, 1 scale, 0 rotation) always exactly undoes the net effect,
+    // regardless of how many edits got there or what the per-channel values
+    // were doing independently in between.
+    if (ImGui::TreeNodeEx("Global Texture Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::TextDisabled("Nudges every texture below together");
+
+        const char* wrapModeNames[] = {"Repeat", "Mirror", "Stretch"};
+        int wrapModeIndex = static_cast<int>(mat.albedoTransform.wrapMode);
+        if (ImGui::Combo("Wrap Mode (All)", &wrapModeIndex, wrapModeNames, IM_ARRAYSIZE(wrapModeNames))) {
+            TextureWrapMode mode = static_cast<TextureWrapMode>(wrapModeIndex);
+            mat.albedoTransform.wrapMode = mode;
+            mat.mrTransform.wrapMode = mode;
+            mat.normalTransform.wrapMode = mode;
+        }
+
+        glm::vec2 previousOffset = mat.globalTransform.offset;
+        if (ImGui::DragFloat2("Position (All)", &mat.globalTransform.offset.x, 0.01f))
+            applyGlobalOffsetDelta(mat, mat.globalTransform.offset - previousOffset);
+
+        ImGui::Checkbox("Link Scale##global", &mat.globalTransform.uniformScaleLocked);
+        glm::vec2 previousScale = mat.globalTransform.scale;
+        dragLockedScale2("Scale (All)", mat.globalTransform.scale, mat.globalTransform.uniformScaleLocked);
+        if (mat.globalTransform.scale != previousScale) {
+            glm::vec2 ratio(previousScale.x != 0.f ? mat.globalTransform.scale.x / previousScale.x : 1.f,
+                             previousScale.y != 0.f ? mat.globalTransform.scale.y / previousScale.y : 1.f);
+            applyGlobalScaleRatio(mat, ratio);
+        }
+
+        float previousRotation = mat.globalTransform.rotationDegrees;
+        if (ImGui::DragFloat("Rotation (All)", &mat.globalTransform.rotationDegrees, 0.5f, -360.f, 360.f, "%.1f deg"))
+            applyGlobalRotationDelta(mat, mat.globalTransform.rotationDegrees - previousRotation);
+
+        if (ImGui::Button("Reset Global Transform")) {
+            // Apply the inverse of the net nudge applied so far, then zero
+            // the bookkeeping value itself - equivalent to having dragged
+            // every slider above back to identity by hand.
+            applyGlobalOffsetDelta(mat, -mat.globalTransform.offset);
+            glm::vec2 inverseRatio(mat.globalTransform.scale.x != 0.f ? 1.f / mat.globalTransform.scale.x : 1.f,
+                                    mat.globalTransform.scale.y != 0.f ? 1.f / mat.globalTransform.scale.y : 1.f);
+            applyGlobalScaleRatio(mat, inverseRatio);
+            applyGlobalRotationDelta(mat, -mat.globalTransform.rotationDegrees);
+            mat.globalTransform = GlobalTextureTransform{};
+        }
+
+        ImGui::TreePop();
+    }
+    ImGui::Separator();
+
     ImGui::Text("Albedo");
     ImGui::ColorEdit3("Base Colour", &mat.baseColour.x);
     drawTextureSlot(MaterialSlotChannel::Albedo, mat.useAlbedoTexture, mat.albedoTexIndex, mat.albedoTexturePath,
-                     VK_FORMAT_R8G8B8A8_SRGB);
+                     VK_FORMAT_R8G8B8A8_SRGB, mat.albedoTransform);
 
     ImGui::Text("Metallic-Roughness");
     ImGui::SliderFloat("Metallic", &mat.metallic, 0.f, 1.f);
     ImGui::SliderFloat("Roughness", &mat.roughness, 0.f, 1.f);
     drawTextureSlot(MaterialSlotChannel::MetallicRoughness, mat.useMRTexture, mat.mrTexIndex, mat.mrTexturePath,
-                     VK_FORMAT_R8G8B8A8_UNORM);
+                     VK_FORMAT_R8G8B8A8_UNORM, mat.mrTransform);
 
     ImGui::Text("Normal");
     drawTextureSlot(MaterialSlotChannel::Normal, mat.useNormalTexture, mat.normalTexIndex, mat.normalTexturePath,
-                     VK_FORMAT_R8G8B8A8_UNORM);
+                     VK_FORMAT_R8G8B8A8_UNORM, mat.normalTransform);
 }
 
 bool SceneHierarchyPanel::trySwapTextureAtCursor(const std::string& imagePath, ImVec2 cursorPos) {
