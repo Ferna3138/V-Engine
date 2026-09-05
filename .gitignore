@@ -408,13 +408,11 @@ build/
 Src/Dependencies/
 
 
-Models/GLTF/*
-!Models/GLTF/Sponza
 
 pipeline_cache.bin
 
 # ImGui layout: each app's committed layout lives next to its code
 # (Src/Application/Apps/<App>/imgui.ini). Stray imgui.ini files written into
 # run/build folders are ignored.
-imgui.ini
-!/Src/Application/Apps/*/imgui.ini
+#imgui.ini
+#!/Src/Application/Apps/*/imgui.ini

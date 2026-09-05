@@ -20,17 +20,20 @@
 #include <filesystem>
 #include <utility>
 
-// ============================ EditorUI ============================
+// Editor UI
 
 EditorUI::EditorUI(Device& device, Window& window, Renderer& renderer,
-                   Scene& scene, ModelImporter& modelImporter, std::string scenePath, std::string iniPath)
+                   Scene& scene, ModelImporter& modelImporter, TextureManager& textureManager,
+                   MaterialManager& materialManager, std::string scenePath, std::string iniPath)
     : device{device}, window{window}, renderer{renderer}, scene{scene}, modelImporter{modelImporter},
-      scenePath{std::move(scenePath)}, iniPath{std::move(iniPath)}, hierarchy{scene} {
+      textureManager{textureManager}, materialManager{materialManager},
+      scenePath{std::move(scenePath)}, iniPath{std::move(iniPath)}, hierarchy{scene, textureManager, materialManager} {
     initBackend();
 }
 
 EditorUI::~EditorUI() {
     ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
+    hierarchy.releaseThumbnails();  // must run before Shutdown() invalidates the backend
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
@@ -76,9 +79,22 @@ void EditorUI::initBackend() {
 
     ImGui_ImplGlfw_InitForVulkan(window.getGLFWwindow(), true);
 
-    // Drag-and-drop model import: filter to supported formats client-side so
-    // an accidental drop of unrelated files doesn't spam worker tasks/logs.
+    // Drag-and-drop: a single image dropped on a material's texture-slot widget
+    // swaps that texture; otherwise, model files are filtered client-side and
+    // queued for import (an accidental drop of unrelated files shouldn't spam
+    // worker tasks/logs).
     window.setDropCallback([this](const std::vector<std::string>& paths) {
+        if (paths.size() == 1) {
+            std::string ext = std::filesystem::path(paths[0]).extension().string();
+            std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+            if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tga") {
+                double x, y;
+                glfwGetCursorPos(window.getGLFWwindow(), &x, &y);
+                if (hierarchy.trySwapTextureAtCursor(paths[0], ImVec2(static_cast<float>(x), static_cast<float>(y))))
+                    return;
+            }
+        }
+
         for (const auto& path : paths) {
             std::string ext = std::filesystem::path(path).extension().string();
             std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
@@ -141,7 +157,7 @@ void EditorUI::drawDockspaceAndMenu() {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
             if (ImGui::MenuItem("Save Scene", "Ctrl+S"))
-                vengine::saveScene(scenePath, scene);
+                vengine::saveScene(scenePath, scene, materialManager);
             if (ImGui::MenuItem("Reload Scene"))
                 reloadRequested = true;
             ImGui::Separator();
@@ -168,7 +184,7 @@ void EditorUI::drawDockspaceAndMenu() {
 
     ImGuiIO& io = ImGui::GetIO();
     if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false))
-        vengine::saveScene(scenePath, scene);
+        vengine::saveScene(scenePath, scene, materialManager);
 
     ImGuiID dockspace_id = ImGui::GetID("MyDockspace");
     ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
@@ -187,7 +203,7 @@ void EditorUI::drawControlPanel() {
     ImGui::End();
 }
 
-// ======================= SceneHierarchyPanel =======================
+// Scene Hierarchy Panel
 
 namespace {
 struct SensorPreset { const char* name; float width; float height; };  // mm
@@ -278,14 +294,115 @@ void SceneHierarchyPanel::draw() {
     ImGui::End();
 
     drawInspector();
+}
 
-    if (entityToDelete != entt::null) {
-        scene.getRegistry().destroy(entityToDelete);
-        entityToDelete = entt::null;
+VkDescriptorSet SceneHierarchyPanel::getOrCreateThumbnail(uint32_t slot) {
+    if (auto it = thumbnailCache.find(slot); it != thumbnailCache.end())
+        return it->second;
+
+    Texture* tex = textureManager.getTexture(slot);
+    // Not ready yet (still streaming in): the sampler/view may not exist, or
+    // the pixel data/layout may not be valid to sample. Don't cache a miss -
+    // retry next frame, since it'll typically become ready within a frame or
+    // two of being requested.
+    if (!tex || !tex->isReady()) return VK_NULL_HANDLE;
+
+    VkDescriptorSet set = ImGui_ImplVulkan_AddTexture(tex->getSampler(), tex->getImageView(),
+                                                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    thumbnailCache[slot] = set;
+    return set;
+}
+
+void SceneHierarchyPanel::releaseThumbnails() {
+    for (auto& [slot, set] : thumbnailCache)
+        ImGui_ImplVulkan_RemoveTexture(set);
+    thumbnailCache.clear();
+}
+
+void SceneHierarchyPanel::drawMaterialSection(Material& mat, uint32_t globalIndex) {
+    // Shared by all three channels: a thumbnail (once the texture has
+    // streamed in), the "Use Texture" toggle, the assigned file's name, a
+    // Browse button, and recording this slot's rect for drag-and-drop.
+    auto drawTextureSlot = [&](MaterialSlotChannel channel, bool& useTexture, uint32_t& texIndex,
+                                std::string& texPath, VkFormat format) {
+        ImGui::PushID(static_cast<int>(channel));
+        ImGui::Checkbox("Use Texture", &useTexture);
+        if (useTexture) {
+            constexpr float kThumbnailSize = 48.0f;
+            if (VkDescriptorSet thumb = getOrCreateThumbnail(texIndex); thumb != VK_NULL_HANDLE) {
+                ImGui::Image((ImTextureID)thumb, ImVec2(kThumbnailSize, kThumbnailSize));
+                ImGui::SameLine();
+            }
+
+            ImGui::BeginGroup();
+            std::string label = texPath.empty() ? "(none)" : std::filesystem::path(texPath).filename().string();
+            ImGui::TextUnformatted(label.c_str());
+            lastTextureSlotRects.push_back({globalIndex, channel, ImGui::GetItemRectMin(), ImGui::GetItemRectMax()});
+            if (ImGui::Button("Browse...")) {
+                if (auto path = vengine::openImageFileDialog()) {
+                    texIndex = textureManager.addTexture(*path, format);
+                    texPath = *path;
+                    useTexture = true;
+                }
+            }
+            ImGui::EndGroup();
+        }
+        ImGui::PopID();
+    };
+
+    // Closed by default: a model can have many materials, and showing every
+    // channel of every one at once gets overwhelming fast.
+    if (!ImGui::CollapsingHeader(mat.name.empty() ? "Material" : mat.name.c_str()))
+        return;
+
+    ImGui::Text("Albedo");
+    ImGui::ColorEdit3("Base Colour", &mat.baseColour.x);
+    drawTextureSlot(MaterialSlotChannel::Albedo, mat.useAlbedoTexture, mat.albedoTexIndex, mat.albedoTexturePath,
+                     VK_FORMAT_R8G8B8A8_SRGB);
+
+    ImGui::Text("Metallic-Roughness");
+    ImGui::SliderFloat("Metallic", &mat.metallic, 0.f, 1.f);
+    ImGui::SliderFloat("Roughness", &mat.roughness, 0.f, 1.f);
+    drawTextureSlot(MaterialSlotChannel::MetallicRoughness, mat.useMRTexture, mat.mrTexIndex, mat.mrTexturePath,
+                     VK_FORMAT_R8G8B8A8_UNORM);
+
+    ImGui::Text("Normal");
+    drawTextureSlot(MaterialSlotChannel::Normal, mat.useNormalTexture, mat.normalTexIndex, mat.normalTexturePath,
+                     VK_FORMAT_R8G8B8A8_UNORM);
+}
+
+bool SceneHierarchyPanel::trySwapTextureAtCursor(const std::string& imagePath, ImVec2 cursorPos) {
+    for (const auto& rect : lastTextureSlotRects) {
+        if (cursorPos.x < rect.rectMin.x || cursorPos.x > rect.rectMax.x ||
+            cursorPos.y < rect.rectMin.y || cursorPos.y > rect.rectMax.y)
+            continue;
+
+        Material& mat = materialManager.getMaterial(rect.globalMaterialIndex);
+        switch (rect.channel) {
+            case MaterialSlotChannel::Albedo:
+                mat.albedoTexIndex = textureManager.addTexture(imagePath, VK_FORMAT_R8G8B8A8_SRGB);
+                mat.albedoTexturePath = imagePath;
+                mat.useAlbedoTexture = true;
+                break;
+            case MaterialSlotChannel::MetallicRoughness:
+                mat.mrTexIndex = textureManager.addTexture(imagePath, VK_FORMAT_R8G8B8A8_UNORM);
+                mat.mrTexturePath = imagePath;
+                mat.useMRTexture = true;
+                break;
+            case MaterialSlotChannel::Normal:
+                mat.normalTexIndex = textureManager.addTexture(imagePath, VK_FORMAT_R8G8B8A8_UNORM);
+                mat.normalTexturePath = imagePath;
+                mat.useNormalTexture = true;
+                break;
+        }
+        return true;
     }
+    return false;
 }
 
 void SceneHierarchyPanel::drawInspector(){
+    lastTextureSlotRects.clear();
+
     ImGui::Begin("Inspector");
     if (selectedEntity == entt::null || !scene.getRegistry().valid(selectedEntity)) {
         ImGui::Text("No entity selected.");
@@ -387,7 +504,7 @@ void SceneHierarchyPanel::drawInspector(){
     if (auto* model = registry.try_get<ModelComponent>(selectedEntity)){
         ImGui::Checkbox("Link Scale Axes", &uniformScaleLocked);
         glm::vec3 previousScale = transform.scale;
-        if (ImGui::SliderFloat3("Scale", &transform.scale.x, 0.0f, 10.0f) && uniformScaleLocked) {
+        if (ImGui::DragFloat3("Scale", &transform.scale.x, 0.05f, 0.0f, 10.0f) && uniformScaleLocked) {
             // Find the axis the drag actually moved, then carry the same ratio
             // (or, from zero, the same absolute value) over to the other two.
             for (int axis = 0; axis < 3; axis++) {
@@ -402,6 +519,13 @@ void SceneHierarchyPanel::drawInspector(){
             }
         }
         ImGui::Separator();
+
+        ImGui::SeparatorText("Materials");
+        for (uint32_t globalIdx : model->model->getMaterialIndices()) {
+            ImGui::PushID(static_cast<int>(globalIdx));
+            drawMaterialSection(materialManager.getMaterial(globalIdx), globalIdx);
+            ImGui::PopID();
+        }
     }
 
     if (ImGui::Button("Delete")) {

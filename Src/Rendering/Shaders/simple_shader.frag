@@ -9,9 +9,7 @@ layout(location = 0) in vec3 fragColour;
 layout(location = 1) in vec3 fragPosWorld;
 layout(location = 2) in vec3 fragNormalWorld;
 layout(location = 3) in vec2 fragUV;
-layout(location = 4) flat in int fragTexIndex;
-layout(location = 5) flat in int fragMrIndex;
-layout(location = 6) flat in int fragNormalIndex;
+layout(location = 4) flat in int fragMaterialIndex;
 layout(location = 7) in vec3 fragTangentWorld;
 
 
@@ -20,33 +18,60 @@ layout(location = 0) out vec4 outColour;
 
 layout(set = 1, binding = 0) uniform sampler2D textures[];
 
+struct Material {
+    vec4  baseColour;
+    int   albedoTexIndex;
+    int   mrTexIndex;
+    int   normalTexIndex;
+    int   useAlbedoTexture;
+    float metallic;
+    float roughness;
+    int   useMRTexture;
+    int   useNormalTexture;
+};
+layout(std430, set = 2, binding = 0) readonly buffer MaterialsBuffer { Material materials[]; };
+
 
 layout(push_constant) uniform Push {
     mat4 modelMatrix; // Projection * View * Model
-    mat4 normalMatrix; 
+    mat4 normalMatrix;
 } push;
 
 
 void main() {
-    vec3 N = normalize(fragNormalWorld);
-    vec3 T = normalize(fragTangentWorld - N * dot(N, fragTangentWorld));
-    vec3 B = cross(N, T);
-    mat3 TBN = mat3(T, B, N);
+    Material mat = materials[fragMaterialIndex];
 
-    vec3 sampledNormal = texture(textures[nonuniformEXT(fragNormalIndex)], fragUV).rgb;
-    sampledNormal = normalize(sampledNormal * 2.0 - 1.0);
-    vec3 surfaceNormal = normalize(TBN * sampledNormal);
+    vec3 N = normalize(fragNormalWorld);
+    vec3 surfaceNormal = N;
+    if (mat.useNormalTexture != 0) {
+        vec3 T = normalize(fragTangentWorld - N * dot(N, fragTangentWorld));
+        vec3 B = cross(N, T);
+        mat3 TBN = mat3(T, B, N);
+
+        vec3 sampledNormal = texture(textures[nonuniformEXT(mat.normalTexIndex)], fragUV).rgb;
+        sampledNormal = normalize(sampledNormal * 2.0 - 1.0);
+        surfaceNormal = normalize(TBN * sampledNormal);
+    }
 
     vec3 cameraPosWorld = ubo.invView[3].xyz;
     vec3 viewDirection = normalize(cameraPosWorld - fragPosWorld);
 
-    // Metallic-roughness workflow: G = roughness, B = metalness (glTF convention).
-    // Loaders bake OBJ shininess / glTF scalar factors into this texture, so every
-    // surface samples the same way.
-    vec3 mrSample = texture(textures[nonuniformEXT(fragMrIndex)], fragUV).rgb;
-    float roughness = clamp(mrSample.g, 0.045, 1.0);
-    float metallic  = mrSample.b;
-    vec3 albedo = texture(textures[nonuniformEXT(fragTexIndex)], fragUV).rgb;
+    // Metallic-roughness workflow: G = roughness, B = metalness (glTF convention)
+    // when a combined MR texture is assigned; otherwise the material's own
+    // scalar factors are used directly - either/or, not glTF's "always multiply".
+    float roughness, metallic;
+    if (mat.useMRTexture != 0) {
+        vec3 mrSample = texture(textures[nonuniformEXT(mat.mrTexIndex)], fragUV).rgb;
+        roughness = clamp(mrSample.g, 0.045, 1.0);
+        metallic  = mrSample.b;
+    } else {
+        roughness = clamp(mat.roughness, 0.045, 1.0);
+        metallic  = mat.metallic;
+    }
+
+    vec3 albedo = mat.useAlbedoTexture != 0
+        ? texture(textures[nonuniformEXT(mat.albedoTexIndex)], fragUV).rgb
+        : mat.baseColour.rgb;
     vec3 F0 = mix(vec3(0.04), albedo, metallic);
 
     // Crude ambient fill (flat, non-directional). A stand-in until the indirect

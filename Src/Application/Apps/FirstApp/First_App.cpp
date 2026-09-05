@@ -112,7 +112,8 @@ void FirstApp::run() {
         device,
         frameGraph.getNodeRenderPass("forward"),
         globalSetLayout->getDescriptorSetLayout(),
-        textureManager.getLayout()};
+        textureManager.getLayout(),
+        materialManager.getLayout()};
     PointLightSystem pointLightSystem{
         device,
         frameGraph.getNodeRenderPass("forward"),
@@ -252,6 +253,16 @@ void FirstApp::run() {
             cameraController.syncFromTransform(scene.getRegistry().get<TransformComponent>(cameraEntity));
         }
 
+        // Outliner "Delete" is deferred here, before this frame's render list is
+        // built: the entity may still be referenced by a command buffer the GPU
+        // hasn't finished with yet, so its GPU resources (e.g. a ModelComponent's
+        // vertex/index buffers) can't be torn down until device.waitIdle() proves
+        // that work is done.
+        if (entt::entity toDelete = editorUI.consumeEntityToDelete(); toDelete != entt::null) {
+            device.waitIdle();
+            scene.getRegistry().destroy(toDelete);
+        }
+
         // Models imported in the background (File > Import Model, drag-and-drop)
         // land here once their GPU upload is done - registry mutation stays on
         // the main thread, same as everything else touching `scene`.
@@ -338,6 +349,7 @@ void FirstApp::run() {
                 cameraComponent->camera,
                 globalDescriptorSets[frameIndex],
                 textureManager.getDescriptorSet(),
+                materialManager.getDescriptorSet(frameIndex),
                 renderScene
             };
 
@@ -357,6 +369,11 @@ void FirstApp::run() {
             frameGraph.setClearColour(editorUI.backgroundColour.r,
                                       editorUI.backgroundColour.g,
                                       editorUI.backgroundColour.b);
+
+            // After draw() so this frame's Inspector edits (if any) are already
+            // in `materials` and land in the GPU buffer this same frame instead
+            // of lagging one behind.
+            materialManager.update(frameIndex);
 
             // Frame graph: depth pre-pass -> forward, into an offscreen image,
             //with barriers auto-inserted from the graph edges.
@@ -443,7 +460,7 @@ void FirstApp::run() {
 
 
 void FirstApp::loadGameObjects() {
-    if (!vengine::loadScene(scenePath, scene, device, textureManager)) {
+    if (!vengine::loadScene(scenePath, scene, device, textureManager, materialManager)) {
         std::cerr << "Failed to load " << scenePath << " - starting with an empty scene\n";
     }
 }

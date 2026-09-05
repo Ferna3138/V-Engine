@@ -92,6 +92,12 @@ uint32_t TextureManager::addRawTexture(const std::string& key, uint8_t r, uint8_
     return slot;
 }
 
+Texture* TextureManager::getTexture(uint32_t slot) {
+    std::lock_guard<std::mutex> lock(mutex);
+    if (slot >= textures.size()) return nullptr;
+    return textures[slot].get();
+}
+
 void TextureManager::writeTextureToSlot(Texture& tex, uint32_t slot){
     VkDescriptorImageInfo imageInfo{};
     imageInfo.sampler = tex.getSampler();

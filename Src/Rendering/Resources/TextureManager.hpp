@@ -31,7 +31,15 @@ class TextureManager{
 
         VkDescriptorSetLayout getLayout() const { return setLayout->getDescriptorSetLayout(); }
         VkDescriptorSet getDescriptorSet() const { return descriptorSet; }
-    
+
+        // For UI previews (e.g. an Inspector thumbnail) that need the raw
+        // sampler/image behind a bindless slot rather than sampling it in a
+        // shader. Returns nullptr if the slot is unused; check isReady() before
+        // trusting the image's contents/layout - a still-streaming texture has
+        // a valid VkImageView/VkSampler but the pixel data (and final layout)
+        // may not have landed yet.
+        Texture* getTexture(uint32_t slot);
+
     private:
         Device& device;
         

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Rendering/RHI/Device.hpp"
+#include "Rendering/Resources/MaterialManager.hpp"
 #include "Rendering/Resources/Model.hpp"
 #include "Rendering/Resources/TextureManager.hpp"
 
@@ -24,7 +25,8 @@ public:
         std::shared_ptr<Model> model;
     };
 
-    ModelImporter(Device& device, TextureManager& textureManager, enki::TaskScheduler& taskScheduler);
+    ModelImporter(Device& device, TextureManager& textureManager, MaterialManager& materialManager,
+                  enki::TaskScheduler& taskScheduler);
 
     // Queues a background import and returns immediately. Safe to call from
     // the main thread (menu item) or a GLFW callback (drag-and-drop).
@@ -43,6 +45,7 @@ private:
 
     Device& device;
     TextureManager& textureManager;
+    MaterialManager& materialManager;
     enki::TaskScheduler& taskScheduler;
 
     // Self-owned, kept alive for the app's lifetime (mirrors

@@ -33,5 +33,6 @@ struct FrameInfo {
     Camera& camera;
     VkDescriptorSet globalDescriptorSet;
     VkDescriptorSet textureDescriptorSet;
+    VkDescriptorSet materialsDescriptorSet;
     const RenderScene& renderScene;
 };

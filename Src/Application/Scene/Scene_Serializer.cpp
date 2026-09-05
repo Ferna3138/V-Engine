@@ -2,6 +2,7 @@
 
 #include "Application/Scene/Scene.hpp"
 #include "Application/Scene/Components.hpp"
+#include "Rendering/Resources/MaterialManager.hpp"
 #include "Rendering/Resources/Model.hpp"
 #include "Rendering/Resources/TextureManager.hpp"
 #include "Rendering/RHI/Device.hpp"
@@ -95,10 +96,53 @@ json writeCameraParams(const CamParameters& p) {
     };
 }
 
+// Applies a saved per-material override on top of whatever the loader already
+// resolved from the source file's defaults. A texture path only takes effect
+// if present and non-empty - re-resolving it registers a (possibly new)
+// bindless slot, exactly like a hot-swap through the Inspector would.
+void readMaterialOverride(const json& j, Material& mat, TextureManager& textureManager) {
+    mat.baseColour = readVec3(j, "baseColour", mat.baseColour);
+    mat.metallic = j.value("metallic", mat.metallic);
+    mat.roughness = j.value("roughness", mat.roughness);
+
+    auto applyTexture = [&](const char* useKey, const char* pathKey, bool& useTexture,
+                             uint32_t& texIndex, std::string& texPath, VkFormat format) {
+        if (j.contains(useKey)) useTexture = j.at(useKey).get<bool>();
+        if (j.contains(pathKey)) {
+            std::string path = j.at(pathKey).get<std::string>();
+            if (!path.empty()) {
+                texIndex = textureManager.addTexture(vengine::resolveAssetPath(path), format);
+                texPath = path;
+            }
+        }
+    };
+    applyTexture("useAlbedoTexture", "albedoTexturePath", mat.useAlbedoTexture, mat.albedoTexIndex,
+                 mat.albedoTexturePath, VK_FORMAT_R8G8B8A8_SRGB);
+    applyTexture("useMRTexture", "mrTexturePath", mat.useMRTexture, mat.mrTexIndex,
+                 mat.mrTexturePath, VK_FORMAT_R8G8B8A8_UNORM);
+    applyTexture("useNormalTexture", "normalTexturePath", mat.useNormalTexture, mat.normalTexIndex,
+                 mat.normalTexturePath, VK_FORMAT_R8G8B8A8_UNORM);
+}
+
+json writeMaterialOverride(const Material& mat) {
+    return json{
+        {"name", mat.name},
+        {"baseColour", writeVec3(mat.baseColour)},
+        {"useAlbedoTexture", mat.useAlbedoTexture},
+        {"albedoTexturePath", mat.albedoTexturePath},
+        {"metallic", mat.metallic},
+        {"roughness", mat.roughness},
+        {"useMRTexture", mat.useMRTexture},
+        {"mrTexturePath", mat.mrTexturePath},
+        {"useNormalTexture", mat.useNormalTexture},
+        {"normalTexturePath", mat.normalTexturePath},
+    };
+}
+
 } // namespace
 
 bool loadScene(const std::string& path, Scene& scene,
-               Device& device, TextureManager& textureManager) {
+               Device& device, TextureManager& textureManager, MaterialManager& materialManager) {
     const std::string resolved = vengine::resolveAssetPath(path);
     std::ifstream file(resolved);
     if (!file.is_open()) {
@@ -135,7 +179,7 @@ bool loadScene(const std::string& path, Scene& scene,
 
         if (entJson.contains("model")) {
             const std::string modelPath = entJson.at("model").get<std::string>();
-            std::shared_ptr<Model> model = Model::createModelFromFile(device, textureManager, modelPath);
+            std::shared_ptr<Model> model = Model::createModelFromFile(device, textureManager, materialManager, modelPath);
             if (!model) {
                 std::cerr << "[SceneSerializer] skipping entity '" << name
                           << "': model not found: " << modelPath << '\n';
@@ -146,6 +190,34 @@ bool loadScene(const std::string& path, Scene& scene,
             registry.get<ModelComponent>(entity).visible = entJson.value("visible", true);
             if (entJson.contains("transform"))
                 readTransform(entJson.at("transform"), registry.get<TransformComponent>(entity));
+
+            if (entJson.contains("materials")) {
+                const json& matsJson = entJson.at("materials");
+                const auto& modelMaterialIndices = model->getMaterialIndices();
+                for (size_t i = 0; i < matsJson.size(); i++) {
+                    const json& matJson = matsJson[i];
+                    std::string wantName = matJson.value("name", std::string{});
+
+                    // Matched by name first (robust to a re-exported asset
+                    // reordering its materials), falling back to position.
+                    uint32_t globalIdx = 0;
+                    bool found = false;
+                    if (!wantName.empty()) {
+                        for (uint32_t idx : modelMaterialIndices) {
+                            if (materialManager.getMaterial(idx).name == wantName) {
+                                globalIdx = idx;
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!found) {
+                        if (i >= modelMaterialIndices.size()) continue;
+                        globalIdx = modelMaterialIndices[i];
+                    }
+                    readMaterialOverride(matJson, materialManager.getMaterial(globalIdx), textureManager);
+                }
+            }
         } else if (entJson.contains("pointLight")) {
             const json& lightJson = entJson.at("pointLight");
             glm::vec4 colour = readVec4(lightJson, "colour", glm::vec4(1.f));
@@ -166,7 +238,7 @@ bool loadScene(const std::string& path, Scene& scene,
     return true;
 }
 
-bool saveScene(const std::string& path, const Scene& scene) {
+bool saveScene(const std::string& path, const Scene& scene, MaterialManager& materialManager) {
     const entt::registry& registry = scene.getRegistry();
 
     json root;
@@ -200,6 +272,11 @@ bool saveScene(const std::string& path, const Scene& scene) {
             if (model->sourcePath.empty()) continue;   // procedurally-built model, nothing to reference
             entJson["model"] = model->sourcePath;
             entJson["visible"] = model->visible;
+
+            json materialsJson = json::array();
+            for (uint32_t idx : model->model->getMaterialIndices())
+                materialsJson.push_back(writeMaterialOverride(materialManager.getMaterial(idx)));
+            entJson["materials"] = materialsJson;
         }
 
         entities.push_back(entJson);

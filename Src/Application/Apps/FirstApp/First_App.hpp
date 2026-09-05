@@ -5,6 +5,7 @@
 #include "Rendering/Core/Renderer.hpp"
 #include "Rendering/RHI/Descriptors.hpp"
 #include "Rendering/Resources/TextureManager.hpp"
+#include "Rendering/Resources/MaterialManager.hpp"
 #include "Rendering/Resources/ModelImporter.hpp"
 #include "Rendering/FrameGraph/Frame_Graph.hpp"
 #include "Rendering/Core/Exposure.hpp"
@@ -64,7 +65,8 @@ class FirstApp {
         Renderer renderer{window, device};
         AsyncLoader asyncLoader = AsyncLoader(device);
         TextureManager textureManager{device, asyncLoader, jobSystem.scheduler()};
-        ModelImporter modelImporter{device, textureManager, jobSystem.scheduler()};
+        MaterialManager materialManager{device};
+        ModelImporter modelImporter{device, textureManager, materialManager, jobSystem.scheduler()};
         FrameGraph frameGraph;
 
         AsyncLoadTask asyncLoadTask;
@@ -73,6 +75,6 @@ class FirstApp {
         std::unique_ptr<DescriptorPool> globalPool;
 
         Scene scene;
-        EditorUI editorUI{device, window, renderer, scene, modelImporter, scenePath,
+        EditorUI editorUI{device, window, renderer, scene, modelImporter, textureManager, materialManager, scenePath,
                           vengine::resolveAssetPath("Src/Application/Apps/FirstApp/imgui.ini")};
 };

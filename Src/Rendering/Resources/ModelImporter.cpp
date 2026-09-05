@@ -3,8 +3,9 @@
 #include <cstdio>
 #include <stdexcept>
 
-ModelImporter::ModelImporter(Device& _device, TextureManager& _textureManager, enki::TaskScheduler& _taskScheduler)
-    : device{_device}, textureManager{_textureManager}, taskScheduler{_taskScheduler} {}
+ModelImporter::ModelImporter(Device& _device, TextureManager& _textureManager, MaterialManager& _materialManager,
+                              enki::TaskScheduler& _taskScheduler)
+    : device{_device}, textureManager{_textureManager}, materialManager{_materialManager}, taskScheduler{_taskScheduler} {}
 
 void ModelImporter::requestImport(const std::string& filepath) {
     auto task = std::make_unique<ImportTask>();
@@ -24,7 +25,7 @@ std::vector<ModelImporter::FinishedImport> ModelImporter::pollFinishedImports() 
 void ModelImporter::ImportTask::ExecuteRange(enki::TaskSetPartition, uint32_t) {
     std::shared_ptr<Model> model;
     try {
-        model = Model::createModelFromFile(owner->device, owner->textureManager, filepath);
+        model = Model::createModelFromFile(owner->device, owner->textureManager, owner->materialManager, filepath);
     } catch (const std::exception& e) {
         // Runs on a worker thread - never let a malformed drop bring the app down.
         std::fprintf(stderr, "Model import failed for %s: %s\n", filepath.c_str(), e.what());

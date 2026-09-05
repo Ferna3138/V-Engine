@@ -15,7 +15,9 @@
 #include <cassert>
 #include <cmath>
 #include <algorithm>
+#include <optional>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 
 #include <glm/gtx/string_cast.hpp>
@@ -24,14 +26,15 @@
 
 
 
-Model::Model(Device& _device, const Model::Builder &builder) : device{_device} {
+Model::Model(Device& _device, const Model::Builder &builder) : device{_device}, materialIndices{builder.materialIndices} {
     createVertexBuffers(builder.vertices);
     createIndexBuffers(builder.indices);
 }
 
 Model::~Model() { }
 
-std::unique_ptr<Model> Model::createModelFromFile(Device& device, TextureManager& textureManager, const std::string &filepath) {
+std::unique_ptr<Model> Model::createModelFromFile(Device& device, TextureManager& textureManager,
+                                                   MaterialManager& materialManager, const std::string &filepath) {
     // Resolve against the project root so the model loads regardless of the
     // working directory the terminal / debugger starts us in.
     std::string resolvedPath = vengine::resolveAssetPath(filepath);
@@ -43,7 +46,7 @@ std::unique_ptr<Model> Model::createModelFromFile(Device& device, TextureManager
     }
 
     Builder builder{};
-    builder.loadModel(resolvedPath, textureManager);
+    builder.loadModel(resolvedPath, textureManager, materialManager);
     return std::make_unique<Model>(device, builder);
 }
 
@@ -143,28 +146,25 @@ std::vector<VkVertexInputAttributeDescription> Model::Vertex::getAttributeDescri
     attributeDescriptions.push_back({1,0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, colour)});
     attributeDescriptions.push_back({2,0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal)});
     attributeDescriptions.push_back({3,0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, uv)});
-    attributeDescriptions.push_back({4,0, VK_FORMAT_R32_SINT, offsetof(Vertex, textureIndex)});
-    attributeDescriptions.push_back({5,0, VK_FORMAT_R32_SINT, offsetof(Vertex, mrIndex)});
-    attributeDescriptions.push_back({6,0, VK_FORMAT_R32_SINT, offsetof(Vertex, normalIndex)});
+    attributeDescriptions.push_back({4,0, VK_FORMAT_R32_SINT, offsetof(Vertex, materialIndex)});
     attributeDescriptions.push_back({7,0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, tangent)});
 
 
     return attributeDescriptions;
 }
 
-void Model::Builder::loadModel(const std::string& filepath, TextureManager& textureManager) {
+void Model::Builder::loadModel(const std::string& filepath, TextureManager& textureManager, MaterialManager& materialManager) {
     fs::path ext = fs::path(filepath).extension();
     if (ext == ".obj")
-        loadObj(filepath, textureManager);
+        loadObj(filepath, textureManager, materialManager);
     else if (ext == ".gltf" || ext == ".glb")
-        loadGltf(filepath, textureManager);
+        loadGltf(filepath, textureManager, materialManager);
     else
         throw std::runtime_error("Unsupported model format: " + ext.string());
 }
 
-void Model::Builder::loadObj(const std::string& filename, TextureManager& textureManager) {
-    std::vector<MaterialObj> materials;
-    std::vector<int32_t>     materialsIndices;
+void Model::Builder::loadObj(const std::string& filename, TextureManager& textureManager, MaterialManager& materialManager) {
+    std::vector<int32_t> materialsIndices;
 
     tinyobj::ObjReader reader;
     reader.ParseFromFile(filename);
@@ -177,60 +177,63 @@ void Model::Builder::loadObj(const std::string& filename, TextureManager& textur
     fs::path objDir  = objPath.parent_path();
     fs::path texDir  = objDir / "textures";
 
-    // Collecting the material in the scene
-    for(const auto& material : reader.GetMaterials()) {
-        MaterialObj m;
-        m.ambient       = glm::vec3(material.ambient[0], material.ambient[1], material.ambient[2]);
-        m.diffuse       = glm::vec3(material.diffuse[0], material.diffuse[1], material.diffuse[2]);
-        m.specular      = glm::vec3(material.specular[0], material.specular[1], material.specular[2]);
-        m.emission      = glm::vec3(material.emission[0], material.emission[1], material.emission[2]);
-        m.transmittance = glm::vec3(material.transmittance[0], material.transmittance[1], material.transmittance[2]);
-        m.dissolve      = material.dissolve;
-        m.ior           = material.ior;
-        m.shininess     = material.shininess;
-        m.illum         = material.illum;
-
-        auto resolveTexture = [&](const std::string& texName, int defaultIndex, VkFormat format) -> int {
-            if (texName.empty()) return defaultIndex;
-            fs::path texFile = texDir / fs::path(texName).filename();
-            if (fs::exists(texFile)) {
-                return static_cast<int>(textureManager.addTexture(texFile.string(), format));
-            }
-            return defaultIndex;
-        };
-
-        // Load diffuse texture
-        m.diffuseTexID = resolveTexture(material.diffuse_texname, 1, VK_FORMAT_R8G8B8A8_SRGB);
-
-        // OBJ is Phong: no metalness, and specular is a colour/intensity map with no
-        // metallic-roughness equivalent. Bake the Blinn-Phong shininess (Ns) into a
-        // 1x1 MR texture (roughness in G, metal 0) and drop map_Ks. Standard
-        // exponent -> roughness fit.
-        {
-            float rough = std::sqrt(2.0f / (std::max(material.shininess, 0.0f) + 2.0f));
-            rough = std::clamp(rough, 0.045f, 1.0f);
-            uint8_t g = static_cast<uint8_t>(rough * 255.0f + 0.5f);
-            m.mrTexID = static_cast<int>(textureManager.addRawTexture(
-                "mr_obj_g" + std::to_string(g), 255, g, 0));
+    // Resolves a named OBJ texture to a bindless slot + the path used, or
+    // {false, defaultIndex, ""} if absent/missing on disk.
+    auto resolveTexture = [&](const std::string& texName, uint32_t defaultIndex, VkFormat format)
+            -> std::tuple<bool, uint32_t, std::string> {
+        if (texName.empty()) return {false, defaultIndex, ""};
+        fs::path texFile = texDir / fs::path(texName).filename();
+        if (fs::exists(texFile)) {
+            std::string path = texFile.string();
+            return {true, textureManager.addTexture(path, format), path};
         }
+        return {false, defaultIndex, ""};
+    };
 
-        // Load normal map (bump_texname is used for normal in OBJ/MTL)
-        m.normalTexID = resolveTexture(material.bump_texname, 2, VK_FORMAT_R8G8B8A8_UNORM);
+    // reader.GetMaterials() is already deduped by tinyobjloader (one entry per
+    // unique material in the file), so a straight 1:1 registration is correct.
+    std::vector<uint32_t> localToGlobal;
+    for(const auto& material : reader.GetMaterials()) {
+        Material m;
+        m.name = material.name;
+        m.baseColour = glm::vec3(material.diffuse[0], material.diffuse[1], material.diffuse[2]);
 
-        materials.emplace_back(m);
+        auto [hasAlbedo, albedoIdx, albedoPath] = resolveTexture(material.diffuse_texname, 1, VK_FORMAT_R8G8B8A8_SRGB);
+        m.useAlbedoTexture = hasAlbedo;
+        m.albedoTexIndex = albedoIdx;
+        m.albedoTexturePath = albedoPath;
+
+        // OBJ is Phong: no metalness, and specular is a colour/intensity map with
+        // no metallic-roughness equivalent, so there's no OBJ concept of an MR
+        // texture - only the Blinn-Phong shininess (Ns), converted to a scalar
+        // roughness (standard exponent -> roughness fit) with metal fixed at 0.
+        m.useMRTexture = false;
+        m.metallic = 0.f;
+        m.roughness = std::clamp(std::sqrt(2.0f / (std::max(material.shininess, 0.0f) + 2.0f)), 0.045f, 1.0f);
+
+        auto [hasNormal, normalIdx, normalPath] = resolveTexture(material.bump_texname, 2, VK_FORMAT_R8G8B8A8_UNORM);
+        m.useNormalTexture = hasNormal;
+        m.normalTexIndex = normalIdx;
+        m.normalTexturePath = normalPath;
+
+        uint32_t globalIdx = materialManager.addMaterial(std::move(m));
+        localToGlobal.push_back(globalIdx);
+        materialIndices.push_back(globalIdx);
     }
 
-    // Default material used when a face has no material assigned (material_id == -1)
-    // or when the obj has no materials at all. Uses the same reserved fallback slots
-    // (white/black/flat-normal) as resolveTexture, instead of the -1 sentinel that
-    // MaterialObj's default constructor would otherwise give.
-    MaterialObj defaultMaterial{};
-    defaultMaterial.diffuseTexID = 1;
-    defaultMaterial.mrTexID      = 0;   // MR neutral: matte dielectric
-    defaultMaterial.normalTexID  = 2;
-
-    if(materials.empty())
-        materials.emplace_back(defaultMaterial);
+    // Default material used when a face has no material assigned (material_id
+    // == -1) or when the obj has no materials at all. Created lazily so files
+    // that always assign a material don't register an unused one.
+    std::optional<uint32_t> defaultGlobalIdx;
+    auto getDefaultMaterial = [&]() -> uint32_t {
+        if (!defaultGlobalIdx) {
+            Material m;
+            m.name = "Default Material";
+            defaultGlobalIdx = materialManager.addMaterial(std::move(m));
+            materialIndices.push_back(*defaultGlobalIdx);
+        }
+        return *defaultGlobalIdx;
+    };
 
     const tinyobj::attrib_t& attrib = reader.GetAttrib();
 
@@ -266,14 +269,11 @@ void Model::Builder::loadObj(const std::string& filename, TextureManager& textur
 
     for (size_t t = 0; t < materialsIndices.size(); t++) {
         int32_t matId = materialsIndices[t];
-        const MaterialObj& mat = (matId >= 0 && static_cast<size_t>(matId) < materials.size())
-            ? materials[matId]
-            : defaultMaterial;
+        uint32_t globalIdx = (matId >= 0 && static_cast<size_t>(matId) < localToGlobal.size())
+            ? localToGlobal[matId]
+            : getDefaultMaterial();
         for (int k = 0; k < 3; k++) {
-            Vertex& v = vertices[3*t + k];
-            v.textureIndex = mat.diffuseTexID;
-            v.mrIndex      = mat.mrTexID;
-            v.normalIndex  = mat.normalTexID;
+            vertices[3*t + k].materialIndex = static_cast<int>(globalIdx);
         }
     }
 
@@ -417,28 +417,76 @@ void collectMeshNodes(const tg3_model* model, int32_t nodeIndex, const glm::mat4
 }
 
 
-void Model::Builder::loadGltf(const std::string& filepath, TextureManager& textureManager) {
+void Model::Builder::loadGltf(const std::string& filepath, TextureManager& textureManager, MaterialManager& materialManager) {
     tinygltf3::Model model;
     tinygltf3::ErrorStack errors;
-    
+
     fs::path gltfDir = fs::path(filepath).parent_path();
-    
-    auto resolveGltfTexture = [&](int32_t textureIndex, int defaultIndex, VkFormat format) -> int {
-        if (textureIndex < 0) return defaultIndex;
+
+    // Resolves a glTF texture reference to a bindless slot + the path used, or
+    // {false, defaultIndex, ""} if absent/embedded/missing on disk.
+    auto resolveGltfTexture = [&](int32_t textureIndex, uint32_t defaultIndex, VkFormat format)
+            -> std::tuple<bool, uint32_t, std::string> {
+        if (textureIndex < 0) return {false, defaultIndex, ""};
         const tg3_texture& tex = model->textures[textureIndex];
-        if (tex.source < 0) return defaultIndex;
+        if (tex.source < 0) return {false, defaultIndex, ""};
         const tg3_image& img = model->images[tex.source];
-        if (img.uri.len == 0) return defaultIndex;   // embedded image — not handled yet, falls back safely
+        if (img.uri.len == 0) return {false, defaultIndex, ""};   // embedded image — not handled yet, falls back safely
         std::string uri(img.uri.data, img.uri.len);
         fs::path imgPath = gltfDir / uri;
-        if (!fs::exists(imgPath)) return defaultIndex;
-        return static_cast<int>(textureManager.addTexture(imgPath.string(), format));
+        if (!fs::exists(imgPath)) return {false, defaultIndex, ""};
+        std::string path = imgPath.string();
+        return {true, textureManager.addTexture(path, format), path};
     };
 
 
     if (tinygltf3::parse_file(model, errors, filepath.c_str()) != TG3_OK) {
         throw std::runtime_error("Failed to load glTF: " + filepath);
     }
+
+    // Dedup by glTF material index (-1 = "no material assigned") across the
+    // WHOLE file: the same material can appear on primitives in different
+    // meshes/nodes, and must map to exactly one MaterialManager entry, not one
+    // per primitive that references it.
+    std::unordered_map<int32_t, uint32_t> gltfMatToGlobal;
+    auto resolveMaterial = [&](int32_t gltfMatIndex) -> uint32_t {
+        if (auto it = gltfMatToGlobal.find(gltfMatIndex); it != gltfMatToGlobal.end())
+            return it->second;
+
+        Material m;
+        if (gltfMatIndex >= 0) {
+            const tg3_material& mat = model->materials[gltfMatIndex];
+            const tg3_pbr_metallic_roughness& pmr = mat.pbr_metallic_roughness;
+            m.name = std::string(mat.name.data, mat.name.len);
+
+            m.baseColour = glm::vec3(pmr.base_color_factor[0], pmr.base_color_factor[1], pmr.base_color_factor[2]);
+            m.metallic = static_cast<float>(pmr.metallic_factor);
+            m.roughness = static_cast<float>(pmr.roughness_factor);
+
+            auto [hasAlbedo, albedoIdx, albedoPath] = resolveGltfTexture(pmr.base_color_texture.index, 1, VK_FORMAT_R8G8B8A8_SRGB);
+            m.useAlbedoTexture = hasAlbedo;
+            m.albedoTexIndex = albedoIdx;
+            m.albedoTexturePath = albedoPath;
+
+            auto [hasNormal, normalIdx, normalPath] = resolveGltfTexture(mat.normal_texture.index, 2, VK_FORMAT_R8G8B8A8_UNORM);
+            m.useNormalTexture = hasNormal;
+            m.normalTexIndex = normalIdx;
+            m.normalTexturePath = normalPath;
+
+            // glTF metallic-roughness: G = roughness, B = metalness.
+            auto [hasMR, mrIdx, mrPath] = resolveGltfTexture(pmr.metallic_roughness_texture.index, 0, VK_FORMAT_R8G8B8A8_UNORM);
+            m.useMRTexture = hasMR;
+            m.mrTexIndex = mrIdx;
+            m.mrTexturePath = mrPath;
+        } else {
+            m.name = "Default Material";
+        }
+
+        uint32_t globalIdx = materialManager.addMaterial(std::move(m));
+        gltfMatToGlobal.emplace(gltfMatIndex, globalIdx);
+        materialIndices.push_back(globalIdx);
+        return globalIdx;
+    };
 
     std::vector<std::pair<int32_t, glm::mat4>> meshNodes;
     int32_t sceneIdx = model->default_scene >= 0 ? model->default_scene : 0;
@@ -452,27 +500,8 @@ void Model::Builder::loadGltf(const std::string& filepath, TextureManager& textu
 
         for (uint32_t p = 0; p < mesh.primitives_count; p++) {
             const tg3_primitive& prim = mesh.primitives[p];
-            
-            int diffuseTex = 1, mrTex = 0, normalTex = 2;   // reserved fallback slots
-            if (prim.material >= 0) {
-                const tg3_material& mat = model->materials[prim.material];
-                const tg3_pbr_metallic_roughness& pmr = mat.pbr_metallic_roughness;
 
-                diffuseTex = resolveGltfTexture(pmr.base_color_texture.index, 1, VK_FORMAT_R8G8B8A8_SRGB);
-                normalTex  = resolveGltfTexture(mat.normal_texture.index, 2, VK_FORMAT_R8G8B8A8_UNORM);
-
-                // glTF metallic-roughness: G = roughness, B = metalness. When there's
-                // no texture, bake the scalar factors into a 1x1 so the shader path
-                // stays uniform.
-                if (pmr.metallic_roughness_texture.index >= 0) {
-                    mrTex = resolveGltfTexture(pmr.metallic_roughness_texture.index, 0, VK_FORMAT_R8G8B8A8_UNORM);
-                } else {
-                    uint8_t g = static_cast<uint8_t>(std::clamp(pmr.roughness_factor, 0.0, 1.0) * 255.0 + 0.5);
-                    uint8_t b = static_cast<uint8_t>(std::clamp(pmr.metallic_factor,  0.0, 1.0) * 255.0 + 0.5);
-                    mrTex = static_cast<int>(textureManager.addRawTexture(
-                        "mr_gltf_g" + std::to_string(g) + "_b" + std::to_string(b), 255, g, b));
-                }
-            }
+            uint32_t materialIndex = resolveMaterial(prim.material);
 
             auto positions = readVec3FloatAccessor(model.get(), findAttribute(prim, "POSITION"));
             auto normals   = readVec3FloatAccessor(model.get(), findAttribute(prim, "NORMAL"));   // may come back empty — attribute is optional
@@ -485,10 +514,7 @@ void Model::Builder::loadGltf(const std::string& filepath, TextureManager& textu
                 v.position = glm::vec3(worldTransform * glm::vec4(positions[i], 1.0f));
                 v.normal   = normals.empty() ? glm::vec3(0.f) : glm::normalize(normalMatrix * normals[i]);
                 v.uv       = texcoords.empty() ? glm::vec2(0.f) : texcoords[i];
-
-                v.textureIndex  = diffuseTex;
-                v.mrIndex       = mrTex;
-                v.normalIndex   = normalTex;
+                v.materialIndex = static_cast<int>(materialIndex);
 
                 vertices.push_back(v);
             }

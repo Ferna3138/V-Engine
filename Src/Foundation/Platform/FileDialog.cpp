@@ -6,7 +6,10 @@
 #include <shobjidl.h>
 #pragma comment(lib, "Ole32.lib")
 
-std::optional<std::string> vengine::openModelFileDialog() {
+namespace {
+
+std::optional<std::string> openFileDialogWithFilter(const wchar_t* title, const wchar_t* filterName,
+                                                      const wchar_t* filterPattern) {
     HRESULT initResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
     bool needsUninit = SUCCEEDED(initResult);
     if (FAILED(initResult) && initResult != RPC_E_CHANGED_MODE) {
@@ -17,11 +20,11 @@ std::optional<std::string> vengine::openModelFileDialog() {
     IFileOpenDialog* dialog = nullptr;
     if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&dialog)))) {
         COMDLG_FILTERSPEC filters[] = {
-            {L"3D Models (*.obj, *.gltf, *.glb)", L"*.obj;*.gltf;*.glb"},
+            {filterName, filterPattern},
             {L"All Files (*.*)", L"*.*"},
         };
         dialog->SetFileTypes(ARRAYSIZE(filters), filters);
-        dialog->SetTitle(L"Import Model");
+        dialog->SetTitle(title);
 
         if (SUCCEEDED(dialog->Show(nullptr))) {
             IShellItem* item = nullptr;
@@ -48,12 +51,28 @@ std::optional<std::string> vengine::openModelFileDialog() {
     return result;
 }
 
+}  // namespace
+
+std::optional<std::string> vengine::openModelFileDialog() {
+    return openFileDialogWithFilter(L"Import Model", L"3D Models (*.obj, *.gltf, *.glb)", L"*.obj;*.gltf;*.glb");
+}
+
+std::optional<std::string> vengine::openImageFileDialog() {
+    return openFileDialogWithFilter(L"Choose Texture", L"Images (*.png, *.jpg, *.jpeg, *.bmp, *.tga)",
+                                     L"*.png;*.jpg;*.jpeg;*.bmp;*.tga");
+}
+
 #else
 
 #include <cstdio>
 
 std::optional<std::string> vengine::openModelFileDialog() {
     std::fprintf(stderr, "Import Model dialog is not implemented on this platform yet.\n");
+    return std::nullopt;
+}
+
+std::optional<std::string> vengine::openImageFileDialog() {
+    std::fprintf(stderr, "Choose Texture dialog is not implemented on this platform yet.\n");
     return std::nullopt;
 }
 

@@ -12,7 +12,8 @@ class SimpleRenderSystem{
         SimpleRenderSystem(Device& device,
             VkRenderPass renderPass,
             VkDescriptorSetLayout globalSetLayout,
-            VkDescriptorSetLayout textureSetLayout);
+            VkDescriptorSetLayout textureSetLayout,
+            VkDescriptorSetLayout materialsSetLayout);
         ~SimpleRenderSystem();
 
         SimpleRenderSystem (const SimpleRenderSystem&) = delete;
@@ -22,7 +23,8 @@ class SimpleRenderSystem{
 
     private:
         void createPipelineLayout(VkDescriptorSetLayout globalSetLayout,
-                                    VkDescriptorSetLayout textureSetLayout);
+                                    VkDescriptorSetLayout textureSetLayout,
+                                    VkDescriptorSetLayout materialsSetLayout);
         void createPipeline(VkRenderPass renderPass);
         
         Device& device;
