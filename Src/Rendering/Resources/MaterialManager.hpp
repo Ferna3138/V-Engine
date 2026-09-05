@@ -16,7 +16,11 @@
 // Matches the shader's manual UV-space wrap (simple_shader.frag) - chosen so
 // no per-material VkSampler is needed even though a texture slot can be
 // shared by materials that each want a different wrap behaviour.
-enum class TextureWrapMode : int32_t { Repeat = 0, Mirror = 1, Stretch = 2 };
+enum class TextureWrapMode : int32_t {
+    Repeat = 0,
+    Mirror = 1,
+    Stretch = 2
+};
 
 // Per-texture-slot UV transform: position/scale/rotation and wrap mode,
 // applied to that slot's UV before sampling. Independent per channel (albedo/
